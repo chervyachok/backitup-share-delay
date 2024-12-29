@@ -1,54 +1,120 @@
-Demo: https://passkey.appdev.pp.ua/register
+# Passkey Demo
 
-This repo contains 3 packages:
+Demo Link: [https://passkey.appdev.pp.ua/register](https://passkey.appdev.pp.ua/register)
 
-Bc - contracts
+## Repository Structure
 
-App - vue client 
+This repository contains three main packages:
 
-Api - server side
+1. **Bc** - Smart Contracts  
+2. **App** - Vue.js Client  
+3. **Api** - Server-side Backend  
 
-------------------------- Start with contracts ----------------------------
+---
 
-In this demo local and sepolia chain could be used.
-Deployment to sepolia required private key in .env file
+## Setup Instructions
 
-cd to /bc folder
+### **1. Smart Contracts (Bc)**
 
-npm i
+#### Description:
+The `Bc` package contains the smart contracts and deployment scripts. Local and Sepolia chains are supported. Deployment to Sepolia requires a private key in the `.env` file.
 
-Use deploy script for required chain.
+#### Steps to Deploy:
 
-npx hardhat run --network local scripts/deploy.js
+1. Navigate to the `/bc` folder:
+   ```bash
+   cd /bc
+   ```
 
-or 
+2. Install dependencies:
+   ```bash
+   npm i
+   ```
 
-npx hardhat run --network sepolia scripts/deploy.js
+3. Deploy the contracts:
+   - For the **local** chain:
+     ```bash
+     npx hardhat run --network local scripts/deploy.js
+     ```
+   - For the **Sepolia** chain:
+     ```bash
+     npx hardhat run --network sepolia scripts/deploy.js
+     ```
 
-After deployment script will generate bcConfig file with contracts setup required for app and api.
+4. After deployment, the script generates a `bcConfig` file with the contract setup required for the **App** and **API**.
 
-------------------------- Api ----------------------------
+---
 
-Configure .env file
+### **2. API**
 
-cd to /api folder
+#### Description:
+The `Api` package provides the backend server functionality.
 
-npm i
+#### Steps to Set Up:
 
-npm run dev 
+1. Configure the `.env` file with the required environment variables.
 
-or
+2. Navigate to the `/api` folder:
+   ```bash
+   cd /api
+   ```
 
-npm run start
+3. Install dependencies:
+   ```bash
+   npm i
+   ```
 
-------------------------- App ----------------------------
+4. Start the server:
+   - For development:
+     ```bash
+     npm run dev
+     ```
+   - For production:
+     ```bash
+     npm run start
+     ```
 
-cd to /app folder
+---
 
-npm i
+### **3. Vue.js Client (App)**
 
-npm run dev 
+#### Description:
+The `App` package contains the frontend code for the demo, built with Vue.js.
 
-or
+#### Steps to Set Up:
 
-npm run build
+1. Navigate to the `/app` folder:
+   ```bash
+   cd /app
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm i
+   ```
+
+3. Run the app:
+   - For development:
+     ```bash
+     npm run dev
+     ```
+   - To build for production:
+     ```bash
+     npm run build
+     ```
+
+---
+
+## Summary
+
+1. **Deploy Smart Contracts**:
+   - Use the deployment script to deploy contracts on the desired chain (local or Sepolia).
+   - A `bcConfig` file will be generated for use in the App and API.
+
+2. **Set Up API**:
+   - Configure the `.env` file and start the backend server.
+
+3. **Run or Build the App**:
+   - Run the Vue.js client in development or production mode.
+
+---
