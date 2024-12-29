@@ -1,6 +1,6 @@
 # BuckitUp Secrete Share Sahring
 
-Demo Link: [https://passkey.appdev.pp.ua](https://passkey.appdev.pp.ua)
+Demo Link: [https://buckitupss.appdev.pp.ua](https://buckitupss.appdev.pp.ua)
 
 Demo works on Sepolia
 
