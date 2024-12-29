@@ -1,4 +1,4 @@
-# BuckitUp Secrete Share Sahring
+# BuckitUp Secret Share
 
 Demo Link: [https://buckitupss.appdev.pp.ua](https://buckitupss.appdev.pp.ua)
 
