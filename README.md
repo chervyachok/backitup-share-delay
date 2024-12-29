@@ -1,6 +1,8 @@
-# Passkey Demo
+# BuckitUp Secrete Share Sahring
 
-Demo Link: [https://passkey.appdev.pp.ua/register](https://passkey.appdev.pp.ua/register)
+Demo Link: [https://passkey.appdev.pp.ua](https://passkey.appdev.pp.ua)
+
+Demo works on Sepolia
 
 ## Repository Structure
 
