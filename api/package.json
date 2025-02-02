@@ -14,7 +14,6 @@
     "start_dev": "pm2 start ecosystem.dev.config.json --no-daemon",
     "prod": "cross-env NODE_ENV=production nodemon src/index.js",
     "dev": "cross-env NODE_ENV=development nodemon src/index.js",
-   
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prettier": "prettier --check **/*.js",
@@ -22,6 +21,8 @@
   },
   "keywords": [],
   "dependencies": {
+    "@lit-protocol/constants": "^7.0.4",
+    "@lit-protocol/lit-node-client": "^7.0.4",
     "adm-zip": "^0.5.16",
     "axios": "^1.7.7",
     "bcryptjs": "^2.4.3",

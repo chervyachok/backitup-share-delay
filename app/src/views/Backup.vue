@@ -41,7 +41,7 @@
                         v-model="tag" 
                         class="form-control"                        
                         placeholder="tag"                        
-                        :class="[ tagDirty && !tagDataPending && (tagInvalid ? 'is-invalid': 'is-valid') ]"
+                        :class="[ tagDirty && (tagInvalid ? 'is-invalid': 'is-valid') ]"
                     >
                     <label for="secretTag">Tag</label>
                     <div class="invalid-feedback">
@@ -66,10 +66,24 @@
             @remove-wallet="() => wallets.splice(idx, 1)"             
         />
 
-        <div>
-            <button class="btn btn-primary mb-2" @click="addWallet()">
-                Add trusted wallet
-            </button>
+        <div class="btn-group mb-3" role="group" aria-label="Button group with nested dropdown">
+            <button type="button" class="btn btn-outline-primary" @click="addWallet()">Add trusted wallet</button>
+            
+            <div class="btn-group" role="group">
+                <button type="button" class="btn  btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    Add from contacts
+                </button>
+                <ul class="dropdown-menu" v-if="$user.account?.contacts?.length">
+                    <div class="d-flex justifu-content-between px-2" v-for="contact in $user.account.contacts" @click="addFromContacts(contact)">
+                        <div class="fw-bold">{{ contact.displayName }}</div>
+                        <div class="ms-3">{{ $filters.addressShort(contact.address) }}</div>
+                    </div>
+                     
+                </ul>
+                <ul class="dropdown-menu" v-if="!$user.account?.contacts?.length">
+                    <li class="dropdown-item">No contacts</li>
+                </ul>
+            </div>
         </div>
        
         <div class="mb-2">
@@ -114,13 +128,17 @@ import { encryptString } from "@lit-protocol/encryption"
 import { utils, constants } from 'ethers';
 import { encryptWithPublicKey, cipher } from 'eth-crypto';
 import axios from 'axios';
+import ContactItem from './ContactItem.vue';
 
-const $account = inject('$account')
+const $user = inject('$user')
 const $timestamp = inject('$timestamp')
 const $web3 = inject('$web3')
 const $swal = inject('$swal')
 const $socket = inject('$socket')
 const $loader = inject('$loader')
+const $modal = inject('$modal')
+
+const $encryptionManager = inject('$encryptionManager')  
 
 const secret = ref(location.origin.includes('loc') ? '0x9f489378530d12beecbcf5a756183cab35f12aabe054a3ad1b99' : null) 
 const comment = ref(location.origin.includes('loc') ? 'My wallet key 0x9f489378530d12beecbcf5a756183cab35f12aabe054a3ad1b99 \n1-Bob 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 \n2-Elis 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC' : null) 
@@ -160,6 +178,7 @@ const addWallet = () => {
 
 onMounted(async () => {
     $socket.on('BACKUP_UPDATE', updateData)
+    
     generateTag()
     if (location.origin.includes('loc')) {
         // 0xEc44b418139Fa30bdAe165a7D8484f6d7F471445
@@ -211,14 +230,6 @@ const updateData = async (tagUpdate) => {
     }    
 }
 
-const { data: backupData, isPending: backupDataPending } = useReadContract({
-    address: $web3.bc.vault.address,
-    abi: JSON.parse($web3.bc.vault.abijson),
-    functionName: 'getBackup',
-    args: computed(() => [tag.value?.trim()]),
-    enabled: computed(() => !!tag.value)
-});
-
 const secretInvalid = computed(() => {
     if (!secret.value?.trim()) return 'Secret is required'
     if (secret.value.length > 300) return 'Secret max 300 chars length'
@@ -226,8 +237,6 @@ const secretInvalid = computed(() => {
 
 const tagInvalid = computed(() => {
     if (!tag.value) return 'Tag is required'
-    if (!backupData.value) return 'Tag data not available'
-    if (backupData.value && backupData.value.owner !== constants.AddressZero) return 'Tag already exist, choose another'
 })
 
 const walletsInvalid = computed(() => {
@@ -260,20 +269,16 @@ const reset = () => {
     })
 }
 
-const { signTypedDataAsync } = useSignTypedData()
-
 const backup = async () => {
-    try {
-        if (!await $web3.walletClient()) return;
-        
+    try {        
         $loader.show()
         
         const commentEncrypted = await encryptWithPublicKey(
-            $web3.keyPair.spendingKeyPair.account.publicKey.slice(2),
+            $user.account.metaPublicKey.slice(2),
             comment.value,
         )
         const backup = {
-            owner: $account.address.value,
+            owner: $user.account.address,
             disabled: 0,
             treshold: treshold.value,
             commentEncrypted: '0x' + cipher.stringify(commentEncrypted),
@@ -281,7 +286,6 @@ const backup = async () => {
         }
         const stealthPublicKeys = []
 
-        console.log('trustedAddressDecrypted', $web3.keyPair)
 
         for (const wallet of wallets.value) {
             const SA = $web3.bukitupClient.generateStealthAddress(wallet.stealth);
@@ -325,7 +329,7 @@ const backup = async () => {
         }
             
         const expire = $timestamp.value + 300                        
-        const signature = await signTypedDataAsync({
+        const signature = await $web3.signTypedData($user.account.privateKey, {
             domain: {
                 name: "BuckitUpVault",
                 version: "1",
@@ -366,7 +370,7 @@ const backup = async () => {
 
         //return $loader.hide()   
         const resp = await axios.post(API_URL + '/dispatch/addBackup', {
-            wallet: $account.address.value, 
+            wallet: $user.account.address, 
             chainId: $web3.mainChainId,
             tag: tag.value, 
             backup, 
@@ -391,6 +395,20 @@ const backup = async () => {
     $loader.hide()   
 }
 
+const addFromContacts = async (contact) => {
+    if (wallets.value.length && !wallets.value[wallets.value.length - 1].address) {
+        wallets.value[wallets.value.length - 1].address = contact.address
+    } else {
+        wallets.value.push({
+            address: contact.address,
+            stealth: null,
+            message: null,
+            delay: 0,
+            valid: false,
+        })
+    }
+}
+
 function generateTag() {    
     const randomArray = window.crypto.getRandomValues(new Uint8Array(8));
     const nonce = Array.from(randomArray)
@@ -400,7 +418,7 @@ function generateTag() {
     console.log(nonce)
     // Create a keccak256 hash of the public key and nonce
     const hash = utils.keccak256(
-        utils.defaultAbiCoder.encode(["address", "uint256"], [$account.address.value, parseInt(nonce, 16).toString()])
+        utils.defaultAbiCoder.encode(["address", "uint256"], [$user.account.address, parseInt(nonce, 16).toString()])
     );
 
     // Convert the hash to a Buffer

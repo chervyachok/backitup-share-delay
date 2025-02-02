@@ -206,6 +206,8 @@ const requestRecover = catchAsync(async (req, res) => {
 	res.send(dispatch)
 });
 
+
+
 const getList = catchAsync(async (req, res) => {
 	const { wallet, chainId } = req.query
 		

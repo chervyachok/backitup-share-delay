@@ -1,51 +1,76 @@
 <template>
   <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-2 pt-2">
-      <div class="d-flex justify-content-center">
-
-
-        <router-link to="/backup" custom v-slot="{ isActive, navigate }">
-          <div class="px-2 pointer" :class="{ 'fw-bold': isActive }" @click="navigate()">
-            Backup
-          </div>
-        </router-link>
-
-        <router-link to="/backups" custom v-slot="{ isActive, navigate }">
-          <div class="px-2 pointer" :class="{ 'fw-bold': isActive }" @click="navigate()">
-            Backups
-          </div>
-        </router-link>
-
-        <router-link to="/find" custom v-slot="{ isActive, navigate }">
-          <div class="px-2 pointer" :class="{ 'fw-bold': isActive }" @click="navigate()">
-            Find
-          </div>
-        </router-link>
-
-        <router-link to="/recover" custom v-slot="{ isActive, navigate }">
-          <div class="px-2 pointer" :class="{ 'fw-bold': isActive }" @click="navigate()">
-            Recover
-          </div>
-        </router-link>
-
-        <router-link to="/secret" custom v-slot="{ isActive, navigate }">
-          <div class="px-2 pointer" :class="{ 'fw-bold': isActive }" @click="navigate()">
-            Secret
-          </div>
-        </router-link>
-      </div>
-      <appkit-button />
-    </div>
-
-    <Register v-if="account?.address?.value" />
     
-    <div v-if="($web3.keyPair && $web3.registered) || ['secret'].includes($route.name)">
-      <router-view />
+    <div class="d-flex justify-content-center mb-2 pt-2">
+      
+      <div>
+        <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            {{ $route.meta.name }}
+        </button>
+        <div class="dropdown-menu">
+          <router-link to="/backup" custom v-slot="{ isActive, navigate }">
+            <a class="dropdown-item" href="#" :class="{ 'fw-bold': isActive }" @click.prevent="navigate()">
+              Backup
+            </a>
+          </router-link>
+          <router-link to="/backups" custom v-slot="{ isActive, navigate }">
+            <a class="dropdown-item" href="#" :class="{ 'fw-bold': isActive }" @click.prevent="navigate()">
+              Backups
+            </a>
+          </router-link>
+          <router-link to="/find" custom v-slot="{ isActive, navigate }">
+            <a class="dropdown-item" href="#" :class="{ 'fw-bold': isActive }" @click.prevent="navigate()">
+              Find
+            </a>
+          </router-link>
+          <router-link to="/recover" custom v-slot="{ isActive, navigate }">
+            <a class="dropdown-item" href="#" :class="{ 'fw-bold': isActive }" @click.prevent="navigate()">
+              Recover
+            </a>
+          </router-link>
+          <router-link to="/secret" custom v-slot="{ isActive, navigate }">
+            <a class="dropdown-item" href="#" :class="{ 'fw-bold': isActive }" @click.prevent="navigate()">
+              Secret
+            </a>
+          </router-link>
+          <router-link to="/contacts" custom v-slot="{ isActive, navigate }">
+            <a class="dropdown-item" href="#" :class="{ 'fw-bold': isActive }" @click.prevent="navigate()">
+              Contacts
+            </a>
+          </router-link>
+        </div>
+      </div>
+      
+        
+
+      <button class="btn btn-primary ms-3" @click="$modal.open({ id: 'signin' })">
+        {{ $user.account ? $user.account.displayName + ' - ' + $filters.addressShort($user.account.address) : 'Connect' }}          
+      </button>
+   </div>
+
+    <div class="d-flex justify-content-center mb-2">
+      
     </div>
 
-    <div class="text-warning text-center">Demo works on ETH Sepolia</div>
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-12 col-lg-8">
+          <Register v-if="$user.account" />
+    
+          <div v-if="$user.account || ['secret'].includes($route.name)">
+            <router-view />
+          </div>
+
+          <div class="text-warning text-center">Demo works on ETH Sepolia</div>
+          </div>
+
+        </div>
+      </div>
+
+    
 
     <Loader />
+    <Modal  ref="$modal" />
 
   </div>
 </template>
@@ -53,34 +78,21 @@
 <script setup>
 import Loader from './components/Loader.vue';
 import Register from "./views/Register.vue"
-
-import { createAppKit, useAppKitAccount } from '@reown/appkit/vue'
+import Modal from './views/modals/Modal.vue';
 import { ref, provide, watch, onMounted, inject } from 'vue';
-import { useAccount } from '@wagmi/vue'
 import { useRoute } from 'vue-router';
 
 const $route = useRoute()
 const $socket = inject('$socket')
 const $mitt = inject('$mitt')
-const $web3 = inject('$web3')
+const $user = inject('$user')
 
-const account = useAccount()
-watch(() => account?.address?.value, async (n, o) => {
-  console.log('app watch account?.address?.value')
-  $web3.setKeyPair(null)
-})
-provide('$account', account)
-
-createAppKit($web3.appKitConfig)
-
-const accountData = useAppKitAccount()  
-watch(() => accountData.value.isConnected, async (n, o) => {
-  console.log('app watch accountData.value.isConnected')
-  $web3.setKeyPair(null)
-})
+const $modal = ref()
+provide('$modal', $modal);
 
 const timestamp = ref()
 provide('$timestamp', timestamp)
+
 onMounted(async () => {
   $socket.on('WALLET_UPDATE', walletUpdateListener)
   setTimeout(function tick() {
@@ -92,7 +104,7 @@ onMounted(async () => {
 })
 
 const walletUpdateListener = async (wallet) => {
-  if (account?.address?.value && account?.address?.value.toLowerCase() === wallet.toLowerCase()) {
+  if ($user.account?.address && $user.account?.address.toLowerCase() === wallet.toLowerCase()) {
     $mitt.emit('WALLET_UPDATE')
   }
 }

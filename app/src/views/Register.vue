@@ -12,27 +12,11 @@
             
         </div>
         
-        <div class="row gx-2" v-if="!$web3.keyPair || metaStealthPubKey?.length <= 2">
+        <div class="row gx-2" v-if=" metaStealthPubKey?.length <= 2">
+            
             <div class="col-md-3">
-                <div class="form-floating mb-2 ">
-                    <input type="text" 
-                        v-model="pin" 
-                        class="form-control" 
-                        placeholder="pin"
-                        :class="[ pinDirty && (pinInvalid ? 'is-invalid': 'is-valid') ]"
-                        >
-                    <label for="pin">Password</label>
-                    <div class="invalid-feedback">
-                        {{ pinInvalid }}
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <button class="btn btn-primary mb-2 me-2" @click="register()" :disabled="pinInvalid || isMSARegisterLoading" v-if="metaStealthPubKey?.length <= 2">
+                <button class="btn btn-primary mb-2 me-2" @click="register()" v-if="metaStealthPubKey?.length <= 2">
                     Register
-                </button>
-                <button class="btn btn-primary mb-2 me-2" @click="sign()" :disabled="pinInvalid" v-if="metaStealthPubKey?.length > 2">
-                    Login
                 </button>
             </div>
         </div>
@@ -43,10 +27,10 @@
                     Join to <a :href="`https://t.me/${tmBot}`" target="_blank" rel="noopener noreferrer">@{{ tmBot }}</a> and receive instant notifications 
                 </div>            
             </div>
-            <a class="" v-if="$web3.keyPair" href="#" @click.prevent="$web3.setKeyPair(null)">Logout</a>
+            
         </div>
                
-        <Transactions v-if="$account?.address?.value" />
+        <Transactions v-if="$user.account?.address" />
     </div>
 </template>
 
@@ -56,7 +40,7 @@ import { useReadContract, useSignTypedData } from '@wagmi/vue'
 import Transactions from "./Transactions.vue"
 import axios from 'axios';
 
-const $account = inject('$account')
+const $user = inject('$user')
 const $timestamp = inject('$timestamp')
 
 const $mitt = inject('$mitt')
@@ -70,8 +54,8 @@ const { data: metaStealthPubKey, refetch: refetchMetaStealthPubKey } = useReadCo
     address: $web3.bc.registry.address,
     abi: JSON.parse($web3.bc.registry.abijson),
     functionName: 'stealthMetaAddresses',
-    args: computed(() => [$account.address.value]),
-    enabled: computed(() => !!$account.address.value)
+    args: computed(() => [$user.account?.address]),
+    enabled: computed(() => !!$user.account?.address)
 });
 
 watch(() => metaStealthPubKey.value, () => {
@@ -97,40 +81,12 @@ watch(() => pin.value, () => {
     pinDirty.value = true
 })
 
-const pinInvalid = computed(() => {
-    if (!pin.value) return 'Pin is required'
-    if (pin.value.length < 4) return 'Min 4 characters'
-})
-
-const { signTypedDataAsync } = useSignTypedData()
-const sign = async () => {  
-    try {
-        await $web3.getKeyPair(pin.value)     
-        
-        if ($web3.keyPair && $web3.keyPair.spendingKeyPair.account.publicKey !== metaStealthPubKey.value) {
-            $web3.setKeyPair(null)
-            throw new Error('Invalid password. Meta address not match registered')
-        }
-    } catch (error) {
-        console.log(error)
-        $swal.fire({
-            icon: 'error',
-            title: 'Login error',
-            footer: error.toString(),
-            timer: 30000,
-        });
-    }
-}
-
 const register = async () => {
     try {
-        if (!await $web3.walletClient()) return;
-
         $loader.show()
-        if (!$web3.keyPair) await $web3.getKeyPair(pin.value)
         
         const expire = $timestamp.value + 300000 
-        const signature = await signTypedDataAsync({
+        const signature = await $web3.signTypedData($user.account.privateKey, {
             domain: {
                 name: "BuckitUpRegistry",
                 version: "1",
@@ -146,16 +102,16 @@ const register = async () => {
             },
             primaryType: 'RegisterWithSign',
             message: {
-                owner: $account.address.value,
-                stealthMetaAddress: $web3.keyPair.spendingKeyPair.account.publicKey,
+                owner: $user.account.address,
+                stealthMetaAddress: $user.account.metaPublicKey,
                 expire
             },
         })
         
 	    await axios.post(API_URL + '/dispatch/register', {
-            owner: $account.address.value, 
+            owner: $user.account.address, 
             chainId: $web3.mainChainId,
-            stealthMetaAddress: $web3.keyPair.spendingKeyPair.account.publicKey, 
+            stealthMetaAddress: $user.account.metaPublicKey, 
             expire: expire,
             signature: signature 
         })  

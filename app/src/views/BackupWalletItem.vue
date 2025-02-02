@@ -1,15 +1,15 @@
 <template>
-    <div class="border rounded p-3 mb-2">
+    <div class="border-top py-2 mb-2">
         <div class="d-flex justify-content-between" >
             <div class="fw-bold mb-1" >
                 Trusted wallet #{{ data.idx + 1 }}
             </div>
-            <a href="#" @click="emit('removeWallet')" class="" v-if="data.length > 1" >Remove</a>
+            <a href="#" @click.prevent="emit('removeWallet')" class="" v-if="data.length > 1" >Remove</a>
         </div>
         
         <div class="row gx-2">
             <div class="col-md-8">
-                <div class="form-floating mb-3 ">
+                <div class="form-floating mb-2 ">
                     
                     <input type="text" 
                         v-model="wallet.address" 
@@ -25,7 +25,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="form-floating mb-3 ms-2">
+                <div class="form-floating mb-2 ">
                     <input type="number" 
                         v-model="wallet.delay" 
                         @change="setWallet()" 
@@ -50,7 +50,7 @@
                         id="restoreDelay" 
                         placeholder="Hey! Bob it's yor share of my wallet. Recover it with alice in case I gone"
                         >
-                    <label for="restoreDelay">Message to trusted wallet (visible immediately)</label>                    
+                    <label for="restoreDelay">Message to trusted wallet</label>                    
                 </div>     
             </div>       
         </div>   

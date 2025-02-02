@@ -28,7 +28,7 @@
             </a>
         </div>
 
-        <div class="text-danger" style="white-space: pre;" v-if="comment && isOwner">
+        <div class="text-danger text-wrap text-break" style="white-space: pre;" v-if="comment && isOwner">
             {{ comment.trim() }}
         </div>
 
@@ -49,7 +49,7 @@ import { useRoute } from 'vue-router';
 import axios from 'axios';
 
 const $timestamp = inject('$timestamp')
-const $account = inject('$account')
+const $user = inject('$user')
 const $web3 = inject('$web3')
 const $swal = inject('$swal')
 const $route = useRoute()
@@ -70,7 +70,7 @@ watch(() => backup, () => {
 const comment = ref()
 
 const isOwner = computed(() => {
-    return backup.wallet.toLowerCase() == $account.address?.value?.toLowerCase()
+    return backup.wallet.toLowerCase() == $user.account?.address?.toLowerCase()
 })
 
 const isUnlocked = computed(() => {
@@ -81,7 +81,7 @@ const init = async () => {
     if (isOwner.value) {      
         try {
             comment.value = await decryptWithPrivateKey(
-                $web3.keyPair.spendingKeyPair.privatekey.slice(2),
+                $user.account.metaPrivateKey.slice(2),
                 cipher.parse(backup.commentEncrypted.slice(2)),
             )            
         } catch (error) {
@@ -93,9 +93,7 @@ const init = async () => {
 const { signTypedDataAsync } = useSignTypedData()
 
 const updateBackupDisabled = async () => {
-    try {
-        if (!await $web3.walletClient()) return;
-
+    try {        
         $loader.show()
 
         const expire = $timestamp.value + 300
@@ -122,7 +120,7 @@ const updateBackupDisabled = async () => {
         })
 
         await axios.post(API_URL + '/dispatch/updateBackupDisabled', {
-            wallet: $account.address.value,
+            wallet: $user.account?.address,
             chainId: $web3.mainChainId,
             tag: backup.tag,
             disabled: backup.disabled ? 0 : 1,            

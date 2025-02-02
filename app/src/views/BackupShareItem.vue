@@ -84,9 +84,7 @@
 
 <script setup>
 import { ref, onMounted, watch, inject, computed } from 'vue';
-import { useReadContract, useSignTypedData } from '@wagmi/vue'
-import { privateKeyToAccount } from 'viem/accounts'
-import { createWalletClient, http } from 'viem';
+import { useReadContract } from '@wagmi/vue'
 import { decryptToString } from "@lit-protocol/encryption"
 import { cipher, decryptWithPrivateKey} from 'eth-crypto';
 import copyToClipboard from '../libs/copyToClipboard';
@@ -94,7 +92,7 @@ import { Wallet } from 'ethers';
 import axios from 'axios';
 
 const $timestamp = inject('$timestamp')
-const $account = inject('$account')
+const $user = inject('$user')
 const $web3 = inject('$web3')
 const $swal = inject('$swal')
 const $loader = inject('$loader')
@@ -125,9 +123,9 @@ const init = async () => {
     privateKey.value = null
     shareDelay.value = share.delay       
     message.value = null           
-    stealthAddr.value = $web3.bukitupClient.getStealthAddressFromEphemeral($web3.keyPair.spendingKeyPair.privatekey, share.ephemeralPubKey).toLowerCase();    
+    stealthAddr.value = $web3.bukitupClient.getStealthAddressFromEphemeral($user.account.metaPrivateKey, share.ephemeralPubKey).toLowerCase();    
     if (stealthAddr.value === share.stealthAddress.toLowerCase()) {
-        privateKey.value = $web3.bukitupClient.generateStealthPrivateKey($web3.keyPair.spendingKeyPair.privatekey, share.ephemeralPubKey);  
+        privateKey.value = $web3.bukitupClient.generateStealthPrivateKey($user.account.metaPrivateKey, share.ephemeralPubKey);  
         try {
             message.value = await decryptWithPrivateKey(
                 privateKey.value.slice(2),
@@ -156,7 +154,7 @@ const isRocoverable = computed(() => {
 })
 
 const isOwner = computed(() => {
-    return backup.wallet.toLowerCase() == $account.address?.value?.toLowerCase()
+    return backup.wallet.toLowerCase() == $user.account?.address?.toLowerCase()
 })
 
 const timeLeft = computed(() => {
@@ -164,16 +162,13 @@ const timeLeft = computed(() => {
     return Math.max(0, (share.request + share.delay - $timestamp.value)) 
 })
 
-const { signTypedDataAsync } = useSignTypedData()
 
 const updateShareDisabled = async () => {
-    try {
-        if (!await $web3.walletClient()) return;
-
+    try {        
         $loader.show()
 
         const expire = $timestamp.value + 300
-        const signature = await signTypedDataAsync({
+        const signature = await $web3.signTypedData($user.account.privateKey, {
             domain: {
                 name: "BuckitUpVault",
                 version: "1",
@@ -198,7 +193,7 @@ const updateShareDisabled = async () => {
         })
 
         await axios.post(API_URL + '/dispatch/updateShareDisabled', {
-            wallet: $account.address.value,
+            wallet: $user.account.address,
             chainId: $web3.mainChainId,
             tag: backup.tag,
             idx: share.idx,
@@ -227,12 +222,10 @@ const updateShareDisabled = async () => {
 
 const updateShareDelay = async () => {
     try {
-        if (!await $web3.walletClient()) return;
-
         $loader.show()
 
         const expire = $timestamp.value + 300
-        const signature = await signTypedDataAsync({
+        const signature = await $web3.signTypedData($user.account.privateKey, {
             domain: {
                 name: "BuckitUpVault",
                 version: "1",
@@ -257,7 +250,7 @@ const updateShareDelay = async () => {
         })
 
         await axios.post(API_URL + '/dispatch/updateShareDelay', {
-            wallet: $account.address.value,
+            wallet: $user.account.address,
             chainId: $web3.mainChainId,
             tag: backup.tag,
             idx: share.idx,
@@ -297,16 +290,9 @@ const requestRecover = async () => {
 		if (!res.isConfirmed) return		
 
         $loader.show()
-
-        const account = privateKeyToAccount(privateKey.value);        
-        const walletClient = createWalletClient({
-            chain: $web3.mainChain,
-            transport: http(),
-            account,
-        });
         
         const expire = $timestamp.value + 300           
-        const signature = await walletClient.signTypedData({
+        const signature = await $web3.signTypedData(privateKey.value, {
             domain: {
                 name: "BuckitUpVault",
                 version: "1",
@@ -329,7 +315,7 @@ const requestRecover = async () => {
         })
       
         await axios.post(API_URL + '/dispatch/requestRecover', {
-            wallet: $account.address.value, 
+            wallet: $user.account.address, 
             chainId: $web3.mainChainId,
             tag: backup.tag, 
             idx: share.idx,
@@ -360,14 +346,20 @@ const recover = async () => {
         $loader.show()
 
         const checkAccess = await getGranted()
-        console.log('grantedData111', checkAccess, checkAccess.data)
+        console.log('grantedData111', checkAccess.data)
         if (!checkAccess.data) {
             $loader.hide()
             throw new Error("Not granted");            
         }
         
         const signer = new Wallet(privateKey.value)
-        const sessionSigs = await $web3.getSessionSigs(signer)
+        console.log('signer', signer.address, share.stealthAddress)
+
+        const capacityDelegationAuthSig = (await axios.post(API_URL + '/lit/getCreditsSign', {
+            address: signer.address, 
+        })).data 
+
+        const sessionSigs = await $web3.getSessionSigs(signer, capacityDelegationAuthSig)
         const unifiedAccessControlConditions = $web3.getAccessControlConditions(backup.tag, share.idx) 
         const ciphertext = Buffer.from(share.shareEncrypted.slice(2), "hex")
         const decodedShare = await decryptToString(

@@ -1,14 +1,39 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
+import WALC from "@lo-fi/webauthn-local-client/bundlers/vite";
+import fs from 'fs';
+import path from 'path';
+import topLevelAwait from 'vite-plugin-top-level-await';
+import wasm from 'vite-plugin-wasm';
+import { fileURLToPath, URL } from 'node:url';
 
 let production = process.env.NODE_ENV === 'production';
 production = true
 
-
 // https://vite.dev/config/
 export default defineConfig({
+  esbuild: {
+    supported: {
+      'top-level-await': true
+    },
+  },
+  worker: {
+    format: 'es',
+    plugins: [topLevelAwait(), wasm()],
+  },
   plugins: [
+    topLevelAwait(), wasm(),
+    //{
+    //  name: 'expose-sodium',
+    //  configureServer() {
+    //    globalThis.sodium = sodium; // Attach sodium globally
+    //  },
+    //  buildEnd() {
+    //    globalThis.sodium = sodium; // Ensure it's available in the final build
+    //  },
+    //},
+    WALC(),
     nodePolyfills({
       // To add only specific polyfills, add them here. If no option is passed, adds all polyfills
       include: [
@@ -40,13 +65,21 @@ export default defineConfig({
     vue()
   ],
   define: {
+    //sodium,
     API_URL: JSON.stringify(production ? 'https://buckitupss.appdev.pp.ua/api' : 'http://localhost:3950/api'),
     IS_PRODUCTION: production,
     API_SURL: JSON.stringify(production ? 'https://buckitupss.appdev.pp.ua' : 'http://localhost:3950'), //http://192.168.100.28:3900 https://d1ca-2a01-c844-251d-5100-fa2f-930b-157d-3af1.ngrok-free.app
 
     API_SPATH: JSON.stringify('/api'),
     TM_BOT: JSON.stringify(production ? 'BuckitUpDemoBot' : 'BuckitUpLocalBot'),
+    LIT_PKP_PUBLIC_KEY: JSON.stringify('0x040886717a89b4ca1f41c39006c85f27dad31ef1d53072bc63ba1b69e7cd70363b8e283077071af75f29c48375c98c77ae5e81995986edcd783b8fa3c45e2c1d1e'),
     //"process.browser": JSON.stringify(true),
+  },
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      
+    },
   },
   //resolve: {
   //  alias: {
@@ -73,7 +106,14 @@ export default defineConfig({
   //    ],
   //  },
   //},
+  optimizeDeps: {
+    esbuildOptions: {
+      target: "es2022",
+    },
+    exclude: [ "@lo-fi/webauthn-local-client" ]
+  },
   build: {
+    target: "es2022",
     //rollupOptions: {
     //  plugins: [rollupNodePolyFill()],
     //},
@@ -97,5 +137,14 @@ export default defineConfig({
         //  }),
         //],
     },
+  },
+  server: {
+    //https: {
+    //  key: fs.readFileSync(path.resolve(__dirname, 'ssl/localhost-key.pem')),
+    //  cert: fs.readFileSync(path.resolve(__dirname, 'ssl/localhost.pem')),
+    //},
+    host: true, // Set to `true` or specify your local IP address
+    port: 5173, // Default port (change if needed)
+    //open: true, // Automatically open in the default browser
   },
 })

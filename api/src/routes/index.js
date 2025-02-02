@@ -10,6 +10,10 @@ const defaultRoutes = [
     path: '/backup',
     route: require('./backup.route'),
   }, 
+  {
+    path: '/lit',
+    route: require('./lit.route'),
+  },
   
 ];
 

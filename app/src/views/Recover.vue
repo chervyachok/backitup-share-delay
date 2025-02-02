@@ -31,7 +31,7 @@ import { ref, onMounted, watch, inject, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 
-const $account = inject('$account')
+const $user = inject('$user')
 const $socket = inject('$socket')
 const $swal = inject('$swal')
 const $web3 = inject('$web3')
@@ -48,7 +48,7 @@ watch(() => tag.value, () => {
     backup.value = null
 })
 
-watch(() => $account.address?.value, () => {
+watch(() => $user.account?.address, () => {
     backup.value = null
 })
 

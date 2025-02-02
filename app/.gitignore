@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 
+ssl
+
 build.js
 
 # Editor directories and files

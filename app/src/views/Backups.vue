@@ -39,12 +39,11 @@
 <script setup>
 import BackupItem from './BackupItem.vue';
 import Paginate from '../components/Paginate.vue'
-
 import { ref, onMounted, inject, onUnmounted } from 'vue';
 import axios from 'axios';
 
 const $web3 = inject('$web3')
-const $account = inject('$account')
+const $user = inject('$user')
 const $socket = inject('$socket')
 
 const dataDefault = {
@@ -88,7 +87,7 @@ function setPage(page) {
 async function getList() {
     data.value.fetching = true
     try {
-        const res = (await axios.get(API_URL + '/backup/getList', { params: { ...data.value.query, wallet: $account.address?.value, chainId: $web3.mainChainId } })).data
+        const res = (await axios.get(API_URL + '/backup/getList', { params: { ...data.value.query, wallet: $user.account?.address, chainId: $web3.mainChainId } })).data
         data.value.items = res.results
         data.value.totalPages = res.totalPages
         data.value.totalResults = res.totalResults

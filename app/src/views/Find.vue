@@ -16,7 +16,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <button class="btn btn-primary mb-2 me-2" @click="scan()" :disabled="!$web3.keyPair">
+                <button class="btn btn-primary mb-2 me-2" @click="scan()" :disabled="!$user.account">
                     Scan
                 </button>
             </div>
@@ -29,11 +29,10 @@
 
 <script setup>
 import BackupItem from './BackupItem.vue';
-
 import { ref, onMounted, watch, inject, onUnmounted } from 'vue';
 import axios from 'axios';
 
-const $account = inject('$account')
+const $user = inject('$user')
 const $web3 = inject('$web3')
 const $swal = inject('$swal')
 const $socket = inject('$socket')
@@ -41,7 +40,7 @@ const $loader = inject('$loader')
 const address = ref()
 const backups = ref([])
 
-watch(() => $account?.address?.value, async (n, o) => {
+watch(() => $user.account?.address, async (n, o) => {
     backups.value = []
 })
 
@@ -78,7 +77,7 @@ const scan = async () => {
 
             for (let i=0; i < backup.shares.length; i++) {
                 const share = backup.shares[i];
-                const stealthAddr = $web3.bukitupClient.getStealthAddressFromEphemeral($web3.keyPair.spendingKeyPair.privatekey, share.ephemeralPubKey);
+                const stealthAddr = $web3.bukitupClient.getStealthAddressFromEphemeral($user.account.metaPrivateKey, share.ephemeralPubKey);
                 
                 if (stealthAddr.toLowerCase() === share.stealthAddress.toLowerCase()) {
                     backups.value.push(backup)

@@ -195,8 +195,9 @@ export class BuckItUpClient {
       ephemeralPubKey.replace('0x', ''),
       false,
     );
+    
     const hashedSharedSecret = keccak256(Buffer.from(sharedSecret.slice(1)));
-    console.log('CURVE.n', CURVE.n)
+    
     const privateKeyBigInt = (BigInt(metaStealthPrivateKey) * BigInt(hashedSharedSecret)) % CURVE.n;
     return pad(toHex(privateKeyBigInt));
   };

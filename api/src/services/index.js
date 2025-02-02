@@ -4,3 +4,4 @@ module.exports.IndexerSrv = require('./indexer.service');
 module.exports.NotificationSrv = require('./notification.service');
 module.exports.DispatchSrv = require('./dispatch.service');
 module.exports.BackupSrv = require('./backup.service');
+module.exports.LitSrv = require('./lit.service');
