@@ -1,3 +1,5 @@
+Demo: https://buckitupss.appdev.pp.ua/backup
+
 # BuckItUp Community-secret-sharing Web App
 
 **Stealth Recovery** is a web application that provides secure local storage and recovery of user credentials, aka wallet backups. It leverages Shamir’s Secret Sharing, smart contracts and Lit Protocol to allow users to backup and recover their DID-s, with security time delays, and keeps sensitive information encrypted locally in the browser.
