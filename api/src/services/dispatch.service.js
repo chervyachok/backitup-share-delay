@@ -10,7 +10,7 @@ const dispatch = async (input) => {
 	const { wallet, contract, method, methodData, chainId } = input;
 
 	const dispatcher = web3.dispatcher(chainId)
-
+	console.log(methodData.args)
 	await web3.contract(contract, chainId).instance.connect(dispatcher).callStatic[method](...methodData.args);	
 	//return global.io.emit('WALLET_UPDATE', wallet)	
 

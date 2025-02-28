@@ -32,10 +32,8 @@ const start = async function(chainId, delay = 10000) {
 	const blocksBehind = 10
 	const pastBlocksDelay = 300
 	const currentBlocksDelay = delay
-
 	const provider = web3.rpc(chainId)
 	
-
 	console.log(`EVENTS SCAN STARTED chainId: ${chainId}`, delay)
 	const step = 50		
     				
@@ -110,12 +108,12 @@ const start = async function(chainId, delay = 10000) {
 					
 					if (event.action === 'Register') {
 						const data = utils.defaultAbiCoder.decode(
-							[ "address owner", "bytes stealthMetaAddress" ], 
+							[ "address owner", "bytes metaPublicKey" ], 
 							rawData
 						)
 						
 						const wallet = data.owner.toLowerCase()
-						const metaAddress = data.stealthMetaAddress.toString()
+						const metaPublicKey = data.metaPublicKey.toString()
 
 						let isWallet = await WalletMdl.findOne({ address: wallet })
 						if (!isWallet) await WalletMdl.create({ address: wallet })
@@ -124,7 +122,7 @@ const start = async function(chainId, delay = 10000) {
 						await MetaAddressMdl.updateOne({ wallet, chainId }, { $set: { 
 							chainId, 
 							wallet,
-							metaAddress,
+							metaPublicKey,
 						}}, { upsert: true });		
 						
 						global.io.emit('WALLET_UPDATE', wallet)	
@@ -158,6 +156,7 @@ const start = async function(chainId, delay = 10000) {
 									disabled: share.disabled,
 									stealthAddress: share.stealthAddress,
 									messageEncrypted: share.messageEncrypted,
+									addressEncrypted: share.addressEncrypted,
 									ephemeralPubKey: share.ephemeralPubKey,
 									shareEncrypted: share.shareEncrypted,
 									shareEncryptedHash: share.shareEncryptedHash,

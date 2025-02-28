@@ -1,0 +1,40 @@
+{
+	"extends": [
+		"eslint:recommended",
+		"prettier"
+	],
+	"rules": {
+		"no-multiple-empty-lines": [
+			"error",
+			{
+				"max": 2,
+				"maxEOF": 1
+			}
+		],
+		"padding-line-between-statements": [
+			"error",
+			{
+				"blankLine": "always",
+				"prev": "*",
+				"next": "function"
+			},
+			{
+				"blankLine": "always",
+				"prev": "*",
+				"next": "class"
+			},
+			{
+				"blankLine": "always",
+				"prev": "expression",
+				"next": "method"
+			}
+		],
+		"lines-between-class-members": [
+			"error",
+			"always",
+			{
+				"exceptAfterSingleLine": true
+			}
+		]
+	}
+}

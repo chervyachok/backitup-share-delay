@@ -5,22 +5,19 @@ const path = require('path');
 const ssh = new NodeSSH();
 const AdmZip = require('adm-zip');
 
-const config = {
-  host: '135.181.151.155',
-  port: '7342',
-  username: 'roma',
-  privateKey: 'E:/Archive/hetzner/openssh', // Use SSH key authentication
-};
-
-// Path to deploy on VPS
-const remoteDistPath = '/home/roma/www/buckitupss/api/src';
-const pm2ProcessName = 'buckitupss_api_3950'; // Replace with your actual PM2 process name or ID
-
 // Step 1: Build the Vite project
-
-
 async function deploy() {
   try {
+    const config = {
+      host: '135.181.151.155',
+      port: '7342',
+      username: 'roma',
+      privateKey: 'E:/Archive/hetzner/openssh', // Use SSH key authentication
+    };
+    // Path to deploy on VPS
+    
+    const remoteDistPath = '/home/roma/www/buckitupss/api/src';
+    const pm2ProcessName = 'buckitupss_api_3950'; // Replace with your actual PM2 process name or ID
     
     console.log('Starting file upload...');
    
@@ -67,23 +64,20 @@ async function deploy() {
     await unlink(zipPath);
     console.log('Local zip file deleted successfully!');
 
-    
-
-    const result = await ssh.execCommand(`pm2 restart ${pm2ProcessName}`);
+    // Step 8: Restart the PM2 process using SSH
+    const result = await ssh.execCommand(`. ~/.nvm/nvm.sh && pm2 restart ${pm2ProcessName}`);
     if (result.stderr) {
-      console.error(`Error restarting PM2 process: ${result.stderr}`);
+      console.error(`Error restarting PM2 process! ${result.stderr} / pm2 restart ${pm2ProcessName}`);
     } else {
       console.log('PM2 process restarted successfully:', result.stdout);
     }
 
+    //const result2 = await ssh.execCommand('echo $PATH');
+    //console.log('PATH:', result2.stdout);
+
     // Step 9: Close the SSH connection
     ssh.dispose();
     console.log('SSH connection closed.');
-    //config.username = 'rchvankov'
-    //await ssh.connect(config);
-    //// Step 8: Restart the PM2 process using SSH
-    //ssh.dispose();
-
   } catch (error) {
     console.error(`Error: ${error.message}`);
   }

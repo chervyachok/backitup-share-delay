@@ -1,0 +1,59 @@
+<template>
+	<div class="d-flex flex-column justify-content-center align-items-center _block px-2 pt-5" v-if="!$user.account">
+		<div class="_icon_logo bg-white"></div>
+
+		<div class="px-3 w-100 mb-3" v-if="$user.vaults?.length && mode !== 'existing'">
+			<button class="btn btn-outline-light w-100" @click="setMode('existing')">Connect existing account</button>
+		</div>
+
+		<div class="_input_block mb-3 w-100" v-if="$user.vaults?.length && mode === 'existing'">
+			<div class="fs-4 text-center mb-2">Connect existing account</div>
+			<Account_Selector />
+		</div>
+
+		<div class="px-3 w-100 mb-3">
+			<button class="btn btn-outline-light w-100" @click="setMode('create')">Create new account</button>
+		</div>
+
+		<div class="px-3 w-100 mb-3">
+			<button class="btn btn-outline-light w-100" @click="setMode('restore')">Import from local backup</button>
+		</div>
+
+		<div class="px-3 w-100 mb-3">
+			<button class="btn btn-outline-light w-100" @click="setMode('shares')">Restore from shares</button>
+		</div>
+	</div>
+</template>
+
+<style lang="scss" scoped>
+._block {
+	width: 100%;
+	max-width: 23rem;
+	height: 100%;
+	._icon_logo {
+		min-height: 6rem;
+		min-width: 6rem;
+		margin-bottom: 2rem;
+	}
+}
+</style>
+
+<script setup>
+import Account_Selector from '@/components/Account_Selector.vue';
+import { inject, ref, onMounted } from 'vue';
+
+const $mitt = inject('$mitt');
+const $user = inject('$user');
+const mode = ref();
+
+onMounted(async () => {
+	if ($user.vaults?.length) mode.value = 'existing';
+});
+
+function setMode(m) {
+	mode.value = m;
+	if (m === 'create') $mitt.emit('modal::open', { id: 'account_create' });
+	if (m === 'restore') $mitt.emit('modal::open', { id: 'account_restore_local' });
+	if (m === 'shares') $mitt.emit('modal::open', { id: 'account_restore_shares' });
+}
+</script>

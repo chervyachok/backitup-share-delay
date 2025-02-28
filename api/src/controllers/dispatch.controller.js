@@ -10,7 +10,7 @@ const pick = require("../utils/pick");
 const register = catchAsync(async (req, res) => {
 	const { 
 		owner,
-		stealthMetaAddress,
+		metaPublicKey,
 		expire,
 		signature,
 		chainId,
@@ -23,12 +23,12 @@ const register = catchAsync(async (req, res) => {
 		chainId, 	
 		methodData: {
 			owner,
-			stealthMetaAddress,
+			metaPublicKey,
 			expire,
 			signature,
 			args: [
 				owner,
-				stealthMetaAddress,
+				metaPublicKey,
 				expire,
 				signature,
 			]

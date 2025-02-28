@@ -5,7 +5,7 @@ const metaAddressSchema = mongoose.Schema(
 	{
         chainId: { type: String, index: true, required: true },
         wallet: { type: String, required: true, index: true },  		
-        metaAddress: { type: String, index: true, default: null }   		     
+        metaPublicKey: { type: String, index: true, default: null }   		     
     },
 	{
 		timestamps: true,	

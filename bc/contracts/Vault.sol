@@ -13,13 +13,13 @@ contract Vault {
         "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
     );
     bytes32 public constant SHARE_TYPEHASH = keccak256(
-        "Share(address stealthAddress,bytes messageEncrypted,bytes ephemeralPubKey,bytes shareEncrypted,bytes shareEncryptedHash,uint40 delay,uint40 request,uint8 disabled)"
+        "Share(address stealthAddress,bytes messageEncrypted,bytes addressEncrypted,bytes ephemeralPubKey,bytes shareEncrypted,bytes shareEncryptedHash,uint40 delay,uint40 request,uint8 disabled)"
     ); 
     bytes32 public constant BACKUP_TYPEHASH = keccak256(
-        "Backup(address owner,uint8 disabled,uint8 treshold,bytes commentEncrypted,Share[] shares)Share(address stealthAddress,bytes messageEncrypted,bytes ephemeralPubKey,bytes shareEncrypted,bytes shareEncryptedHash,uint40 delay,uint40 request,uint8 disabled)"
+        "Backup(address owner,uint8 disabled,uint8 treshold,bytes commentEncrypted,Share[] shares)Share(address stealthAddress,bytes messageEncrypted,bytes addressEncrypted,bytes ephemeralPubKey,bytes shareEncrypted,bytes shareEncryptedHash,uint40 delay,uint40 request,uint8 disabled)"
     );
     bytes32 public constant ADD_BACKUP_TYPEHASH = keccak256(
-        "AddBackup(string tag,Backup backup,uint40 expire)Backup(address owner,uint8 disabled,uint8 treshold,bytes commentEncrypted,Share[] shares)Share(address stealthAddress,bytes messageEncrypted,bytes ephemeralPubKey,bytes shareEncrypted,bytes shareEncryptedHash,uint40 delay,uint40 request,uint8 disabled)"
+        "AddBackup(string tag,Backup backup,uint40 expire)Backup(address owner,uint8 disabled,uint8 treshold,bytes commentEncrypted,Share[] shares)Share(address stealthAddress,bytes messageEncrypted,bytes addressEncrypted,bytes ephemeralPubKey,bytes shareEncrypted,bytes shareEncryptedHash,uint40 delay,uint40 request,uint8 disabled)"
     );
     bytes32 public constant UPDATE_BACKUP_DISABLED_TYPEHASH = keccak256(
         "UpdateBackupDisabled(string tag,uint8 disabled,uint40 expire)"
@@ -41,6 +41,7 @@ contract Vault {
     struct Share {        
         address stealthAddress;
         bytes messageEncrypted;
+        bytes addressEncrypted;
         bytes ephemeralPubKey;
         bytes shareEncrypted;
         bytes shareEncryptedHash;  
@@ -100,6 +101,7 @@ contract Vault {
                     SHARE_TYPEHASH,
                     share.stealthAddress,
                     keccak256(share.messageEncrypted),
+                    keccak256(share.addressEncrypted),
                     keccak256(share.ephemeralPubKey),
                     keccak256(share.shareEncrypted),
                     keccak256(share.shareEncryptedHash),

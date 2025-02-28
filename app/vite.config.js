@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import WALC from "@lo-fi/webauthn-local-client/bundlers/vite";
+import svgLoader from 'vite-svg-loader';
 import fs from 'fs';
 import path from 'path';
 import topLevelAwait from 'vite-plugin-top-level-await';
@@ -23,7 +24,9 @@ export default defineConfig({
     plugins: [topLevelAwait(), wasm()],
   },
   plugins: [
-    topLevelAwait(), wasm(),
+    topLevelAwait(), 
+    wasm(),
+    svgLoader(),
     //{
     //  name: 'expose-sodium',
     //  configureServer() {
@@ -73,7 +76,11 @@ export default defineConfig({
     API_SPATH: JSON.stringify('/api'),
     TM_BOT: JSON.stringify(production ? 'BuckitUpDemoBot' : 'BuckitUpLocalBot'),
     LIT_PKP_PUBLIC_KEY: JSON.stringify('0x040886717a89b4ca1f41c39006c85f27dad31ef1d53072bc63ba1b69e7cd70363b8e283077071af75f29c48375c98c77ae5e81995986edcd783b8fa3c45e2c1d1e'),
-    //"process.browser": JSON.stringify(true),
+    
+    
+    IPFS_URL: JSON.stringify('https://fanaticodev.infura-ipfs.io/ipfs/'),    
+    INFURA_PR_ID: JSON.stringify('c683c07028924e35ae07d1b82ecbe342'),
+    INFURA_SERCET: JSON.stringify('iWIYyzBCkJHfHxYlHYSKnulu3rkCP3stdSr6AX6BVsFxi4kZYPXN7Q'),
   },
   resolve: {
     alias: {
@@ -139,10 +146,10 @@ export default defineConfig({
     },
   },
   server: {
-    //https: {
-    //  key: fs.readFileSync(path.resolve(__dirname, 'ssl/localhost-key.pem')),
-    //  cert: fs.readFileSync(path.resolve(__dirname, 'ssl/localhost.pem')),
-    //},
+    https: {
+      key: fs.readFileSync(path.resolve(__dirname, 'ssl/localhost-key.pem')),
+      cert: fs.readFileSync(path.resolve(__dirname, 'ssl/localhost.pem')),
+    },
     host: true, // Set to `true` or specify your local IP address
     port: 5173, // Default port (change if needed)
     //open: true, // Automatically open in the default browser

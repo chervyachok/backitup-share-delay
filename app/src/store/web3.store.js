@@ -133,6 +133,12 @@ export const web3Store = defineStore("web3", () => {
     }
   };
 
+  const addressShort = (address) => {
+    if (address) return address.replace(address.substring(6, 38), '...');
+      return '...';
+    }
+  
+
   const getAccessControlConditions = (tag, idx) => {
     const checkActionIpfs = 'QmezCK5USTbk2Wfwgk4va8FFZCjeimw1NgX3QCPLTBggsY'
     const checkActionIpfs5 = `
@@ -207,23 +213,14 @@ export const web3Store = defineStore("web3", () => {
     return conditions
   }
 
-  const registered = ref(false);
-  const setRegisterred = (val) => {
-    registered.value = val
-  }
 
-  const reset = () => {
-    console.log('web3 reset')
-    keyPair.value = null
-    registered.value = false
-  }
+ 
 
   return {
     projectId,
     mainChain,
     mainChainId,
-    registered,
-    setRegisterred,
+    addressShort,
     bukitupClient,
     
     getSessionSigs,
@@ -236,7 +233,7 @@ export const web3Store = defineStore("web3", () => {
     wagmiAdapter,
     
     blockExplorer,
-    reset,
+    
     signTypedData
   };
 });

@@ -31,7 +31,7 @@ tmBot.on('message', async (ctx) => {
 
 			if (!hasWallet) throw new Error('Wallet not found')
 
-			const meta = await MetaAddressMdl.find({ wallet, metaAddress: { $ne: null } })
+			const meta = await MetaAddressMdl.find({ wallet, metaPublicKey: { $ne: null } })
 			if (!meta.length) throw new Error('Wallet not have registered meta address')
 
 			let tmLink = await TmLinkMdl.findOne({ wallet, uid })
