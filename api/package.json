@@ -21,6 +21,7 @@
   },
   "keywords": [],
   "dependencies": {
+    "@dxos/signal": "^0.7.5-feature-compute.4d9d99a",
     "@lit-protocol/constants": "^7.0.4",
     "@lit-protocol/lit-node-client": "^7.0.4",
     "adm-zip": "^0.5.16",

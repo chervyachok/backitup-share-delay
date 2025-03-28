@@ -1,6 +1,6 @@
 <template>
 	<FullContentBlock v-if="$user.account">
-		<template #header> Notifications </template>
+		<template #header><div class="fw-bold fs-5 py-1">Notifications</div> </template>
 		<template #content>
 			<div class="_full_width_block">
 				<div class="fw-bold text-center">

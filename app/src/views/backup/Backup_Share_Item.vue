@@ -1,73 +1,212 @@
 <template>
-	<div class="border-top mt-2 pt-2" v-if="isOwner || share.stealthAddress?.toLowerCase() === stealthAddr">
-		<div class="d-flex align-items-center justify-content-between mb-2" v-if="isOwner">
-			<div class="" v-if="contact">
-				<Account_Item :account="contact" />
+	<div class="border-top mt-2 pt-2" v-if="isOwner || isTrusted">
+		<div class="row">
+			<div class="col-30 col-xl-12 d-flex justify-content-start align-items-center">
+				<div v-if="isOwner" class="mb-2 mb-xl-0">
+					<!--a :href="$web3.blockExplorer + '/address/' + backup.wallet" target="_blank" rel="noopener noreferrer">
+						{{ $filters.addressShort(backup.wallet) }}
+					</a-->
+
+					<div class="" v-if="contact" :class="{ _disabled: share.disabled }">
+						<Account_Item :account="contact" />
+					</div>
+				</div>
+
+				<div class="w-100 p-0" v-if="isTrusted">
+					<div class="row">
+						<div class="col-30 col-xl-12 d-flex justify-content-between align-items-center mb-2 mb-xl-0">
+							<div class="fw-bold text-primary me-3" v-tooltip="`Created ${$date(backup.createdAt).format('DD-MM-YY HH:mm')}`">
+								{{ backup.tag }}
+							</div>
+							<div v-tooltip="`Created ${$date(backup.createdAt).format('DD-MM-YY HH:mm')}`" v-if="$breakpoint.lte('lg')">
+								{{ $date(backup.createdAt).fromNow() }}
+							</div>
+						</div>
+						<div class="col-30 col-xl-18">
+							<div class="mb-2 mb-xl-0 _pointer" :class="{ _truncate: truncated }" @click="truncated = !truncated">
+								{{ message }}
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="col-30 col-xl-6 d-flex flex-column flex-xl-row justify-content-start justify-content-xl-center align-items-start align-items-xl-center">
+				<div class="mb-1 d-block d-xl-none fw-bold">Recovery delay</div>
+
+				<div class="_btn_block _blue" v-if="share.delay" @click="updateShareDelay()" :disabled="tx.length" :class="{ _disabled: share.disabled }">
+					<i class="_icon_timer me-2"></i>
+					<span class="fw-bold ms-1">{{ $filters.secondsToHMS(share.delay) }}</span>
+
+					<div class="_badge _pointer" v-if="isOwner">
+						<i class="_icon_edit_pen"></i>
+					</div>
+				</div>
+
+				<div class="_btn_block _blue opacity-50" v-if="!share.delay">Not set</div>
+			</div>
+			<div class="col-30 col-xl-6 d-flex flex-column flex-xl-row justify-content-start justify-content-xl-center align-items-start align-items-xl-center mb-2 mb-xl-0">
+				<div class="mb-1 d-block d-xl-none fw-bold">Status</div>
+				<div class="_btn_block _grey" v-if="!share.unlocked && share.disabled">Disabled</div>
+				<div class="_btn_block _red" v-if="share.unlocked">Unlocked</div>
+				<div class="_btn_block _green" v-if="!share.unlocked && !share.disabled && !share.request">Secured</div>
+
+				<div
+					class="_btn_block _orange"
+					v-if="share.request && !share.unlocked && timeLeft && !share.disabled"
+					v-tooltip="`Requested ${$date.unix(share.request).format('DD-MM-YY HH:mm')}, Unlocks ${$date.unix(share.request + share.delay).format('DD-MM-YY HH:mm')}`"
+				>
+					<i class="_icon_unlock me-2"></i>
+					{{ $date.unix(share.request + share.delay).fromNow() }}
+				</div>
 			</div>
 
-			<div class="text-end">
-				<div class="text-danger fw-bold text-end" v-if="!share.unlocked && share.disabled">Disabled</div>
-				<button type="button" class="btn btn-outline-dark btn-sm" @click="updateShareDisabled()" v-if="isOwner && !share.unlocked" :disabled="tx.length">
-					{{ share.disabled ? 'Enable' : 'Disable' }}
-				</button>
-				<button type="button" class="btn btn-outline-dark btn-sm" @click="recover()" v-if="!isRequestRequired && isRocoverable">Recover</button>
+			<div class="col-30 col-xl-6 d-flex justify-content-end align-items-center text-center">
+				<div class="btn-group w-100" role="group" aria-label="Basic mixed styles example" v-if="isOwner">
+					<button type="button" class="btn btn-outline-dark btn-sm w-100" @click="updateShareDisabled()" v-if="isOwner && !share.unlocked" :disabled="tx.length">
+						{{ share.disabled ? 'Enable' : 'Disable' }}
+					</button>
 
-				<span v-if="share.unlocked" class="text-success fw-bold ms-2"> Unlocked </span>
+					<button type="button" class="btn btn-outline-dark btn-sm w-100" @click="deleteBackup()" v-if="share.unlocked">Delete</button>
+
+					<div class="btn-group" role="group" v-if="!share.unlocked">
+						<button type="button" class="btn btn-outline-dark btn-sm dropdown-toggle px-3" data-bs-toggle="dropdown" aria-expanded="false" :disabled="tx.length"></button>
+						<ul class="dropdown-menu">
+							<li>
+								<a class="dropdown-item d-flex align-items-center" href="#" v-if="isOwner" @click="updateShareDelay()">
+									<i class="_icon_timer me-2"></i>
+									Set recovery delay
+								</a>
+							</li>
+							<li>
+								<a class="dropdown-item d-flex align-items-center" href="#" @click.prevent="deleteBackup()" v-if="!share.unlocked && share.disabled">
+									<i class="_icon_delete me-2"></i>
+									Delete (hide from list)
+								</a>
+							</li>
+						</ul>
+					</div>
+				</div>
+
+				<div class="btn-group w-100" role="group" aria-label="Basic mixed styles example" v-if="share.stealthAddress?.toLowerCase() === stealthAddr">
+					<button type="button" class="btn btn-outline-dark btn-sm w-100" @click="requestRecover()" v-if="isRequestRequired" :disabled="tx.length">Request</button>
+
+					<button type="button" class="btn btn-outline-danger btn-sm w-100" @click="requestRecover()" v-if="share.request && !share.unlocked" disabled>Requested</button>
+
+					<button type="button" class="btn btn-outline-dark btn-sm" @click="recover('down')" v-if="!isRequestRequired && isRocoverable">Download</button>
+
+					<div class="btn-group" role="group" v-if="share.unlocked">
+						<button type="button" class="btn btn-outline-dark btn-sm dropdown-toggle px-3" data-bs-toggle="dropdown" aria-expanded="false"></button>
+						<ul class="dropdown-menu">
+							<li>
+								<a class="dropdown-item d-flex align-items-center" href="#" @click.prevent="recover('restore')" v-if="!isRequestRequired && isRocoverable"> Restore </a>
+							</li>
+							<li>
+								<a class="dropdown-item d-flex align-items-center" href="#" @click.prevent="recover('copy')" v-if="!isRequestRequired && isRocoverable"> Copy </a>
+							</li>
+							<li>
+								<a class="dropdown-item d-flex align-items-center" href="#" @click.prevent="deleteBackup()" v-if="share.unlocked"> Delete (hide from list) </a>
+							</li>
+						</ul>
+					</div>
+				</div>
 			</div>
 		</div>
 
-		<div v-if="message" class="mb-2">
-			{{ message }}
-		</div>
-
-		<div class="fw-bold"></div>
-
-		<div class="d-flex justify-content-between align-items-center">
-			<div class="d-flex align-items-center" v-if="share.delay && !share.unlocked">
-				<i class="_icon_timer bg-black me-2"></i>
-				<div>Recover delay</div>
-				<span class="fw-bold ms-1">{{ $filters.secondsToHMS(share.delay) }}</span>
-				<InfoTooltip class="align-self-center ms-2" :content="'Required number of shares to recover secret'" />
-			</div>
-
-			<div>
-				<button type="button" class="btn btn-outline-dark btn-sm" @click="setUpdateShareDelay(share.idx)" v-if="isOwner && share.delay && !share.unlocked" :disabled="tx.length">Update</button>
-				<button type="button" class="btn btn-outline-dark btn-sm" @click="requestRecover()" v-if="!isOwner && isRequestRequired" :disabled="tx.length">Request</button>
-			</div>
-		</div>
-
-		<div class="d-flex justify-content-between align-items-center" v-if="!isRequestRequired && isRocoverable">
-			<div class="d-flex align-items-center">
-				<span class="text-success fw-bold"> Unlocked </span>
-			</div>
-
-			<div>
-				<button type="button" class="btn btn-outline-dark btn-sm" @click="recover('copy')">Copy</button>
-				<button type="button" class="btn btn-outline-dark btn-sm ms-1" @click="recover('down')">Download</button>
-				<button type="button" class="btn btn-outline-dark btn-sm ms-1" @click="recover('restore')">Restore</button>
-			</div>
-		</div>
-
-		<div class="d-flex justify-content-between align-items-center mt-2" v-if="share.request && !share.unlocked">
-			<div class="d-flex align-items-center">
-				<span class="text-danger fw-bold me-2"> Recover requested </span>
-				<!--span>{{ $date.unix(share.request).fromNow() }}</span-->
-			</div>
-
-			<div v-if="timeLeft" v-tooltip="`Requested ${$date.unix(share.request).format('DD-MM-YY HH:mm')}, Unlocks ${$date.unix(share.request + share.delay).format('DD-MM-YY HH:mm')}`">
-				Unlocks {{ $date.unix(share.request + share.delay).fromNow() }}
-			</div>
-		</div>
-
-		<div v-show="tx" class="mt-2">
+		<div v-show="tx" v-if="!isOwner" class="mt-2">
 			<Transactions :list="tx" />
 		</div>
 	</div>
 </template>
 
+<style lang="scss" scoped>
+@import '@/scss/variables.scss';
+@import '@/scss/breakpoints.scss';
+._select_icon {
+	height: 3rem;
+	min-width: 3rem;
+	width: 3rem;
+	margin-right: 1rem;
+	margin-top: 1rem;
+}
+._export_locally {
+	margin-left: 4rem;
+	width: 100%;
+}
+._btn_block {
+	border: 1px solid #000000;
+	background-color: #0000001e;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0.18rem 0.2rem;
+	width: 100%;
+	border-radius: 0.25rem;
+	position: relative;
+	._badge {
+		position: absolute;
+		right: -5px;
+		top: -5px;
+		border-radius: 0.25rem;
+		padding: 0.2rem;
+		i {
+			background-color: $white !important;
+			height: 0.9rem;
+			min-width: 0.9rem;
+		}
+	}
+	&._grey {
+		border-color: $grey_dark;
+		background-color: rgba($grey_dark, 0.3);
+		color: $grey_dark;
+		i,
+		._badge {
+			background-color: $grey_dark;
+		}
+	}
+	&._green {
+		border-color: $green;
+		background-color: rgba($green, 0.3);
+		color: $green;
+		i {
+			background-color: $green;
+		}
+	}
+	&._blue {
+		border-color: $blue;
+		background-color: rgba($blue, 0.3);
+		color: $blue;
+		i,
+		._badge {
+			background-color: $blue;
+		}
+	}
+	&._orange {
+		border-color: $orange;
+		background-color: rgba($orange, 0.3);
+		color: $orange;
+		i,
+		._badge {
+			background-color: $orange;
+		}
+	}
+	&._red {
+		border-color: $red;
+		background-color: rgba($red, 0.3);
+		color: $red;
+		i,
+		._badge {
+			background-color: $red;
+		}
+	}
+}
+._disabled {
+	filter: grayscale(1) opacity(0.6) !important;
+}
+</style>
+
 <script setup>
 import { ref, onMounted, watch, inject, computed } from 'vue';
-import { useReadContract } from '@wagmi/vue';
+//import { useReadContract } from '@wagmi/vue';
 import { decryptToString } from '@lit-protocol/encryption';
 import { cipher, decryptWithPrivateKey } from 'eth-crypto';
 import copyToClipboard from '@/utils/copyToClipboard';
@@ -87,6 +226,7 @@ const $router = inject('$router');
 const $appstate = inject('$appstate');
 
 const shareDelay = ref();
+const truncated = ref(true);
 
 const { backup, share, idx } = defineProps({
 	backup: { type: Object, required: true },
@@ -96,6 +236,7 @@ const { backup, share, idx } = defineProps({
 
 onMounted(async () => {
 	init();
+	//console.log(backup, share, idx);
 });
 
 const tx = computed(() => {
@@ -107,7 +248,7 @@ const tx = computed(() => {
 watch(
 	() => backup,
 	async (newResult) => {
-		console.log('watch backupData', newResult);
+		//console.log('watch backupData', newResult);
 		init();
 	},
 	{ deep: true },
@@ -121,7 +262,7 @@ const address = ref();
 const contact = computed(() => {
 	let contact;
 	try {
-		contact = $user.account.contacts.find((c) => c.address.toLowerCase() === address.value.toLowerCase());
+		contact = $user.contacts.find((c) => c.address.toLowerCase() === address.value.toLowerCase());
 	} catch (error) {}
 
 	try {
@@ -143,7 +284,7 @@ const init = async () => {
 		privateKey.value = $web3.bukitupClient.generateStealthPrivateKey($user.account.metaPrivateKey, share.ephemeralPubKey);
 		try {
 			message.value = await decryptWithPrivateKey(privateKey.value.slice(2), cipher.parse(share.messageEncrypted.slice(2)));
-			console.log('message', message.value);
+			//console.log('message', message.value);
 		} catch (error) {
 			console.log('message', error);
 		}
@@ -172,12 +313,17 @@ const isOwner = computed(() => {
 	return backup.wallet.toLowerCase() == $user.account?.address?.toLowerCase();
 });
 
+const isTrusted = computed(() => {
+	return share.stealthAddress?.toLowerCase() === stealthAddr.value;
+});
+
 const timeLeft = computed(() => {
 	if (share.request == 0) return 0;
 	return Math.max(0, share.request + share.delay - $timestamp.value);
 });
 
 const updateShareDisabled = async () => {
+	if (tx.value.length) return;
 	if (
 		!(await $swalModal.value.open({
 			id: 'confirm',
@@ -191,29 +337,27 @@ const updateShareDisabled = async () => {
 		$loader.show();
 
 		const expire = $timestamp.value + 300;
-		const signature = await $web3.signTypedData($user.account.privateKey, {
-			domain: {
-				name: 'BuckitUpVault',
-				version: '1',
-				chainId: $web3.mainChainId,
-				verifyingContract: $web3.bc.vault.address,
-			},
-			types: {
-				UpdateShareDisabled: [
-					{ name: 'tag', type: 'string' },
-					{ name: 'idx', type: 'uint8' },
-					{ name: 'disabled', type: 'uint8' },
-					{ name: 'expire', type: 'uint40' },
-				],
-			},
-			primaryType: 'UpdateShareDisabled',
-			message: {
-				tag: backup.tag,
-				idx: share.idx,
-				disabled: share.disabled ? 0 : 1,
-				expire,
-			},
-		});
+		const domain = {
+			name: 'BuckitUpVault',
+			version: '1',
+			chainId: $web3.mainChainId,
+			verifyingContract: $web3.bc.vault.address,
+		};
+		const types = {
+			UpdateShareDisabled: [
+				{ name: 'tag', type: 'string' },
+				{ name: 'idx', type: 'uint8' },
+				{ name: 'disabled', type: 'uint8' },
+				{ name: 'expire', type: 'uint40' },
+			],
+		};
+		const message = {
+			tag: backup.tag,
+			idx: share.idx,
+			disabled: share.disabled ? 0 : 1,
+			expire,
+		};
+		const signature = await $web3.signTypedData($user.account.privateKey, domain, types, message);
 
 		await axios.post(API_URL + '/dispatch/updateShareDisabled', {
 			wallet: $user.account.address,
@@ -244,49 +388,57 @@ const updateShareDisabled = async () => {
 };
 
 const updateShareDelay = async () => {
-	if (
-		!(await $swalModal.value.open({
-			id: 'confirm',
-			title: 'Update recovery delay',
-			content: 'Confirm transaction',
-		}))
-	)
-		return;
+	if (tx.value.length) return;
+	if (!isOwner.value) return;
+	const newDelay = await $swalModal.value.open({
+		id: 'update_backup_share_delay',
+		currentDelay: share.delay,
+	});
+
+	if (newDelay === undefined || newDelay === false || newDelay == share.delay) return;
+
+	//await new Promise((resolve) => setTimeout(resolve, 450));
+	//if (
+	//	!(await $swalModal.value.open({
+	//		id: 'confirm',
+	//		title: 'Update recovery delay',
+	//		content: 'Confirm transaction',
+	//	}))
+	//)
+	//	return;
 
 	try {
 		$loader.show();
 
 		const expire = $timestamp.value + 300;
-		const signature = await $web3.signTypedData($user.account.privateKey, {
-			domain: {
-				name: 'BuckitUpVault',
-				version: '1',
-				chainId: $web3.mainChainId,
-				verifyingContract: $web3.bc.vault.address,
-			},
-			types: {
-				UpdateShareDelay: [
-					{ name: 'tag', type: 'string' },
-					{ name: 'idx', type: 'uint8' },
-					{ name: 'delay', type: 'uint40' },
-					{ name: 'expire', type: 'uint40' },
-				],
-			},
-			primaryType: 'UpdateShareDelay',
-			message: {
-				tag: backup.tag,
-				idx: share.idx,
-				delay: shareDelay.value,
-				expire,
-			},
-		});
+		const domain = {
+			name: 'BuckitUpVault',
+			version: '1',
+			chainId: $web3.mainChainId,
+			verifyingContract: $web3.bc.vault.address,
+		};
+		const types = {
+			UpdateShareDelay: [
+				{ name: 'tag', type: 'string' },
+				{ name: 'idx', type: 'uint8' },
+				{ name: 'delay', type: 'uint40' },
+				{ name: 'expire', type: 'uint40' },
+			],
+		};
+		const message = {
+			tag: backup.tag,
+			idx: share.idx,
+			delay: newDelay,
+			expire,
+		};
+		const signature = await $web3.signTypedData($user.account.privateKey, domain, types, message);
 
 		await axios.post(API_URL + '/dispatch/updateShareDelay', {
 			wallet: $user.account.address,
 			chainId: $web3.mainChainId,
 			tag: backup.tag,
 			idx: share.idx,
-			delay: shareDelay.value,
+			delay: newDelay,
 			expire,
 			signature,
 		});
@@ -310,6 +462,7 @@ const updateShareDelay = async () => {
 };
 
 const requestRecover = async () => {
+	if (tx.value.length) return;
 	if (
 		!(await $swalModal.value.open({
 			id: 'confirm',
@@ -323,27 +476,25 @@ const requestRecover = async () => {
 		$loader.show();
 
 		const expire = $timestamp.value + 300;
-		const signature = await $web3.signTypedData(privateKey.value, {
-			domain: {
-				name: 'BuckitUpVault',
-				version: '1',
-				chainId: $web3.mainChainId,
-				verifyingContract: $web3.bc.vault.address,
-			},
-			types: {
-				RequestRecover: [
-					{ name: 'tag', type: 'string' },
-					{ name: 'idx', type: 'uint8' },
-					{ name: 'expire', type: 'uint40' },
-				],
-			},
-			primaryType: 'RequestRecover',
-			message: {
-				tag: backup.tag,
-				idx: share.idx,
-				expire,
-			},
-		});
+		const domain = {
+			name: 'BuckitUpVault',
+			version: '1',
+			chainId: $web3.mainChainId,
+			verifyingContract: $web3.bc.vault.address,
+		};
+		const types = {
+			RequestRecover: [
+				{ name: 'tag', type: 'string' },
+				{ name: 'idx', type: 'uint8' },
+				{ name: 'expire', type: 'uint40' },
+			],
+		};
+		const message = {
+			tag: backup.tag,
+			idx: share.idx,
+			expire,
+		};
+		const signature = await $web3.signTypedData($user.account.privateKey, domain, types, message);
 
 		await axios.post(API_URL + '/dispatch/requestRecover', {
 			wallet: $user.account.address,
@@ -376,9 +527,8 @@ const recover = async (saveType) => {
 	try {
 		$loader.show();
 
-		const checkAccess = await getGranted();
-
-		if (!checkAccess.data) {
+		const checkAccess = await $web3.vaultContract.getGranted($user.account.address);
+		if (!checkAccess) {
 			$loader.hide();
 			throw new Error('Not granted');
 		}
@@ -439,12 +589,4 @@ const recover = async (saveType) => {
 	}
 	$loader.hide();
 };
-
-const { refetch: getGranted } = useReadContract({
-	address: $web3.bc.vault.address,
-	abi: JSON.parse($web3.bc.vault.abijson),
-	functionName: 'granted',
-	args: computed(() => [backup.tag, share.idx, stealthAddr.value]),
-	enabled: false,
-});
 </script>

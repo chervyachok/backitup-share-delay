@@ -1,12 +1,48 @@
 <template>
+	<TopBarTemplate>
+		<div class="d-flex align-items-center justify-content-between">
+			<div class="d-flex align-items-center w-100">
+				<div class="_search flex-grow-1">
+					<div class="_input_search ps-2">
+						<input class="" type="text" v-model="data.query.s" autocomplete="off" placeholder="find by backup tag..." />
+
+						<div class="_icon_times" v-if="data.query.s" @click="resetSearch()"></div>
+					</div>
+				</div>
+
+				<div class="d-flex">
+					<button class="btn btn-dark ms-1 rounded-pill d-flex align-items-center flex-fill py-2" @click="search()">
+						<i class="_icon_search bg-white"></i>
+						<span class="d-none d-sm-block ms-2">{{ data.query.s ? 'Search' : 'Scan' }}</span>
+					</button>
+
+					<button class="btn btn-dark ms-1 rounded-pill" @click="getList()">
+						<i class="_icon_reload bg-white"></i>
+					</button>
+				</div>
+			</div>
+		</div>
+	</TopBarTemplate>
+
 	<FullContentBlock v-if="$user.account">
-		<template #header> My shares </template>
+		<template #header>
+			<div class="d-flex align-items-center justify-content-between w-100 pe-3">
+				<div class="fw-bold fs-5 py-1">My shares</div>
+				<div class="d-flex align-items-center">
+					<TopBarReuseTemplate v-if="$user.accountInfo.registeredMetaWallet && $breakpoint.gte('lg')" />
+				</div>
+			</div>
+		</template>
+		<template #headerbottom v-if="$user.accountInfo.registeredMetaWallet && $breakpoint.lt('lg')">
+			<TopBarReuseTemplate class="mt-2 pe-3" />
+		</template>
+
 		<template #content>
 			<div class="_full_width_block">
 				<Account_Activate_Reminder />
 
-				<template v-if="$user.account.registeredMetaWallet">
-					<div class="_divider">
+				<template v-if="$user.accountInfo.registeredMetaWallet">
+					<div class="_divider" v-if="!data.searched">
 						Find your shares
 						<InfoTooltip class="align-self-center ms-2" :content="'Find your shares'" />
 					</div>
@@ -15,24 +51,12 @@
 						Scan all to find all shares created for your stealth addresses. Or search by backup tag, creator public key or wallet address
 					</div>
 
-					<div class="d-flex align-items-center w-100 mb-3 flex-column flex-lg-row">
-						<div class="_search flex-grow-1 mb-2" :class="{ 'w-100': $breakpoint.lt('lg') }">
-							<div class="_input_search">
-								<div class="_icon_search"></div>
-								<input class="" type="text" v-model="data.query.s" autocomplete="off" placeholder="backup tag, owner public key or address..." />
-
-								<div class="_icon_times" v-if="data.query.s" @click="resetSearch()"></div>
-							</div>
-						</div>
-						<button class="btn btn-dark ms-2 rounded-pill mb-2 px-4" :class="{ 'w-100': $breakpoint.lt('lg') }" @click="getList()">{{ data.query.s ? 'Search' : 'Scan all' }}</button>
-					</div>
-
 					<div v-if="data.fetched">
 						<div v-if="!data.items.length">
-							<div class="text-center fs-2 mb-3">No shares found</div>
+							<div class="text-center fs-2 mb-1">No shares found</div>
 						</div>
-						<div class="_data_block mb-3" v-for="(backup, $index) in data.items" :key="backup.id">
-							<BackupItem :backup="backup" />
+						<div class="_data_block mb-3" v-for="(item, $index) in data.items" :key="item.fetchTimestamp">
+							<Backup_OwnerGroup_Item :item="item" />
 						</div>
 					</div>
 
@@ -45,20 +69,32 @@
 
 <style lang="scss" scoped>
 @import '@/scss/variables.scss';
+@import '@/scss/breakpoints.scss';
 ._full_width_block {
-	max-width: 40rem;
+	//max-width: 40rem;
 	width: 100%;
+}
+
+._search {
+	height: 2.2rem;
+	@include media-breakpoint-up(sm) {
+		height: 2.5rem;
+	}
 }
 </style>
 
 <script setup>
-import BackupItem from './Backup_Item.vue';
+import Backup_OwnerGroup_Item from './Backup_OwnerGroup_Item.vue';
 import Paginate from '@/components/Paginate.vue';
 import { ref, onMounted, watch, inject, onUnmounted } from 'vue';
 import axios from 'axios';
 import FullContentBlock from '@/components/FullContentBlock.vue';
 import Account_Activate_Reminder from '@/components/Account_Activate_Reminder.vue';
 import { utils } from 'ethers';
+import { createReusableTemplate } from '@vueuse/core';
+
+const [TopBarTemplate, TopBarReuseTemplate] = createReusableTemplate();
+
 const $user = inject('$user');
 const $web3 = inject('$web3');
 const $swal = inject('$swal');
@@ -81,7 +117,8 @@ const data = ref(JSON.parse(JSON.stringify(dataDefault)));
 onMounted(async () => {
 	$socket.on('BACKUP_UPDATE', updateData);
 	data.value = JSON.parse(JSON.stringify(dataDefault));
-	//if ($user.account?.registeredMetaWallet) getList();
+	//if ($user.accountInfo?.registeredMetaWallet) getList();
+	getList();
 });
 
 onUnmounted(async () => {
@@ -89,7 +126,7 @@ onUnmounted(async () => {
 });
 
 watch(
-	() => $user.account?.registeredMetaWallet,
+	() => $user.accountInfo?.registeredMetaWallet,
 	async (newVal) => {
 		if (newVal) {
 			//getList();
@@ -115,6 +152,12 @@ const resetSearch = async () => {
 	data.value.items = [];
 	data.value.totalPages = 0;
 	data.value.totalResults = 0;
+	getList();
+};
+
+const search = async () => {
+	//if (!data.value.query.s) return;
+	getList();
 };
 
 function setPage(page) {
@@ -127,6 +170,7 @@ const getList = async () => {
 	data.value.fetching = true;
 	try {
 		const backups = [];
+		const groupedBackups = {};
 		let s;
 		if (data.value.query.s?.length) {
 			try {
@@ -157,13 +201,34 @@ const getList = async () => {
 
 				if (stealthAddr.toLowerCase() === share.stealthAddress.toLowerCase()) {
 					backups.push(backup);
+					if (!groupedBackups[backup.wallet]) {
+						groupedBackups[backup.wallet] = {
+							wallet: backup.wallet,
+							fetchTimestamp: backup.fetchTimestamp,
+							backups: [],
+						};
+					}
+					groupedBackups[backup.wallet].backups.push({
+						wallet: backup.wallet,
+						createdAt: backup.createdAt,
+						disabled: backup.disabled,
+						id: backup.id,
+						fetchTimestamp: backup.fetchTimestamp,
+						tag: backup.tag,
+						treshold: backup.treshold,
+						share,
+					}); // Grouping backups by owner
+
 					break;
 				}
 			}
 		}
-		data.value.items = backups;
+		const groupedArray = Object.values(groupedBackups);
+
+		data.value.items = groupedArray;
+		console.log(groupedArray);
 		data.value.totalPages = 1;
-		data.value.totalResults = backups.length;
+		data.value.totalResults = groupedArray.length;
 	} catch (error) {
 		console.log(error);
 		$swal.fire({

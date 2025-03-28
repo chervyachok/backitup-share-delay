@@ -1,5 +1,5 @@
 <template>
-	<div v-if="!$user.account.registeredMetaWallet">
+	<div v-if="!$user.accountInfo.registeredMetaWallet">
 		<div class="_divider">
 			Activate Your Profile
 			<InfoTooltip class="align-self-center ms-2" :content="'Register meta address'" />

@@ -1,6 +1,6 @@
 <template>
 	<FullContentBlock v-if="$user.account">
-		<template #header> Restore from shares </template>
+		<template #header><div class="fw-bold fs-5 py-1">Restore from shares</div> </template>
 		<template #content>
 			<div class="_full_width_block">
 				<RestoreFromShares @restore="setSecret" @account="setAccount" :key="updateKey" />

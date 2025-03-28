@@ -1,14 +1,12 @@
 <template>
-	<Contacts_List @select="select" :selected="selected" />
+	<div class="fs-5 text-center mb-2 mt-2" v-if="!hasContacts">Your contacts list is empty</div>
 
-	<div class="fs-5 text-center" v-if="!$user.account.contacts.length">
-		<p>Your list is empty</p>
-	</div>
+	<Contacts_List @select="select" :selected="selected" />
 </template>
 
 <script setup>
 import Contacts_List from '@/views/contacts/Contacts_List.vue';
-import { ref, inject, watch, onMounted } from 'vue';
+import { ref, inject, watch, onMounted, computed } from 'vue';
 
 const $route = inject('$route');
 const $router = inject('$router');
@@ -27,6 +25,10 @@ onMounted(async () => {
 	if ($menuOpened.value && $route.params.address) checkSelection();
 });
 
+const hasContacts = computed(() => {
+	return $user.contacts.filter((contact) => !contact.hidden).length > 0;
+});
+
 watch(
 	() => $menuOpened.value,
 	async (newVal) => {
@@ -41,8 +43,15 @@ watch(
 	},
 );
 
+watch(
+	() => $route.params?.address,
+	async (newVal) => {
+		checkSelection();
+	},
+);
+
 const checkSelection = () => {
-	const contact = $user.account.contacts.find((c) => c.address === $route.params.address);
+	const contact = $user.contacts.find((c) => c.address === $route.params.address);
 	if (contact) selected.value = [$route.params.address];
 };
 </script>

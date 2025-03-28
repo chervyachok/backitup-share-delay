@@ -89,6 +89,22 @@ const modalRegistry = {
 		icon: '_icon_backups',
 	},
 
+	account_dxos_invite: {
+		header: true,
+		component: 'Modal_Account_Dxos_Invite',
+		modalClass: 'modal-sm',
+		title: 'Invite other device',
+		icon: '_icon_reload',
+	},
+
+	account_dxos_connect: {
+		header: true,
+		component: 'Modal_Account_Dxos_Connect',
+		modalClass: 'modal-sm',
+		title: 'Connect to other device',
+		icon: '_icon_reload',
+	},
+
 	account_activate: {
 		header: false,
 		component: 'Modal_Account_Activate',

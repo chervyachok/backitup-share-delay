@@ -11,6 +11,12 @@
 	opacity: 0.8;
 }
 
+._truncate {
+	white-space: nowrap; // Prevents text from wrapping to a new line
+	overflow: hidden; // Hides overflowed text
+	text-overflow: ellipsis; // Adds "..." at the end of truncated text
+}
+
 ._btn_back {
 	padding: 0.4rem 0.8rem;
 	cursor: pointer;
@@ -162,5 +168,41 @@
 				}
 			}
 		}
+	}
+}
+
+.btn-outline-dark {
+	color: $dark;
+	&:hover,
+	&:active,
+	&.active,
+	&:checked {
+		color: $white !important;
+		*[class^='_icon'],
+		*[class^='_i_'] {
+			background-color: $white !important;
+		}
+	}
+	*[class^='_icon'],
+	*[class^='_i_'] {
+		background-color: $dark;
+	}
+}
+
+.btn-outline-danger {
+	color: $red;
+	&:hover,
+	&:active,
+	&.active,
+	&:checked {
+		color: $white !important;
+		*[class^='_icon'],
+		*[class^='_i_'] {
+			background-color: $white !important;
+		}
+	}
+	*[class^='_icon'],
+	*[class^='_i_'] {
+		background-color: $red;
 	}
 }

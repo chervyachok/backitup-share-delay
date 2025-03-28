@@ -1,5 +1,5 @@
 <template>
-	<Account_Item :account="$user.account" class="mb-2" />
+	<Account_Item :self="true" class="mb-2" />
 
 	<div class="border-bottom pt-1 mx-2 mb-2"></div>
 
@@ -38,6 +38,7 @@
 			<div>Restore shares</div>
 		</div>
 	</router-link>
+
 	<router-link :to="{ name: 'account_notifications' }" custom v-slot="{ isExactActive, navigate }">
 		<div class="_sub_menu_btn" :class="{ _active: isExactActive }" @click="select(navigate)">
 			<div class="_i_block">
@@ -46,6 +47,7 @@
 			<div>Notifications</div>
 		</div>
 	</router-link>
+
 	<router-link :to="{ name: 'account_transactions' }" custom v-slot="{ isExactActive, navigate }">
 		<div class="_sub_menu_btn" :class="{ _active: isExactActive }" @click="select(navigate)">
 			<div class="_i_block">
@@ -79,10 +81,33 @@
 
 <script setup>
 import Account_Item from '@/components/Account_Item.vue';
-import { inject } from 'vue';
+import { inject, computed, onMounted, onUnmounted, nextTick, ref } from 'vue';
 
 const $user = inject('$user');
 const $menuOpened = inject('$menuOpened');
+const accountInfo = ref();
+const accountInfoQuery = $user.space.db.query((doc) => doc.type === 'accountInfo');
+
+//const accountIn = computed(() => {
+//	console.log({ ...accountInfo });
+//	return {
+//		...$user.account,
+//		...$user.accountInfo,
+//	};
+//});
+
+//let accountInfoUnsubscribe;
+//onMounted(() => {
+//	accountInfoUnsubscribe = accountInfoQuery.subscribe(async ({ objects }) => {
+//		console.log('accountInfo update', objects[0].name);
+//		accountInfo.value = { ...objects[0] }; //await mergeAccountInfoDuplicates(objects);
+//		await nextTick();
+//	});
+//});
+
+//onUnmounted(() => {
+//	if (accountInfoUnsubscribe) accountInfoUnsubscribe();
+//});
 
 const select = (navigate) => {
 	$menuOpened.value = false;

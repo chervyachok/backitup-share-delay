@@ -60,10 +60,10 @@
 			</div>
 
 			<div class="d-flex justify-content-center mt-2">
-				<button class="btn btn-dark w-100" @click="register()" :disabled="!agree">Activate</button>
+				<button class="btn btn-dark w-100" @click="register()" :disabled="!agree || registerTx">Activate</button>
 			</div>
 
-			<div :class="{ _input_block: registerTx }">
+			<div :class="{ _input_block: registerTx }" class="mt-2">
 				<div class="small mb-2" v-if="registerTx">Latest transaction</div>
 				<Transactions :list="registerTx ? [registerTx] : null" only-last="true" />
 			</div>
@@ -156,7 +156,7 @@ const registerTx = computed(() => {
 });
 
 watch(
-	() => $user.account?.registeredMetaWallet,
+	() => $user.accountInfo?.registeredMetaWallet,
 	(newVal) => {
 		if (newVal) {
 			closeModal();
@@ -174,27 +174,25 @@ const register = async () => {
 		$loader.show();
 
 		const expire = $timestamp.value + 300000;
-		const signature = await $web3.signTypedData($user.account.privateKey, {
-			domain: {
-				name: 'BuckitUpRegistry',
-				version: '1',
-				chainId: $web3.mainChainId,
-				verifyingContract: $web3.bc.registry.address,
-			},
-			types: {
-				RegisterWithSign: [
-					{ name: 'owner', type: 'address' },
-					{ name: 'metaPublicKey', type: 'bytes' },
-					{ name: 'expire', type: 'uint40' },
-				],
-			},
-			primaryType: 'RegisterWithSign',
-			message: {
-				owner: $user.account.address,
-				metaPublicKey: $user.account.metaPublicKey,
-				expire,
-			},
-		});
+		const domain = {
+			name: 'BuckitUpRegistry',
+			version: '1',
+			chainId: $web3.mainChainId,
+			verifyingContract: $web3.bc.registry.address,
+		};
+		const types = {
+			RegisterWithSign: [
+				{ name: 'owner', type: 'address' },
+				{ name: 'metaPublicKey', type: 'bytes' },
+				{ name: 'expire', type: 'uint40' },
+			],
+		};
+		const message = {
+			owner: $user.account.address,
+			metaPublicKey: $user.account.metaPublicKey,
+			expire,
+		};
+		const signature = await $web3.signTypedData($user.account.privateKey, domain, types, message);
 
 		await axios.post(API_URL + '/dispatch/register', {
 			owner: $user.account.address,

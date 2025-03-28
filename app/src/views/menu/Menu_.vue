@@ -41,7 +41,7 @@
 		</div>
 
 		<div class="_sub">
-			<div class="d-flex justify-content-between align-items-center p-2">
+			<div class="d-flex justify-content-between align-items-center p-2" v-if="menu">
 				<div class="fw-bold fs-5 ms-2">{{ menuRegistry[menu].subName }}</div>
 
 				<div class="d-flex align-items-center">
@@ -58,7 +58,7 @@
 					</div>
 				</div>
 			</div>
-			<div class="px-2">
+			<div class="px-2" v-if="component">
 				<component :is="component"></component>
 			</div>
 		</div>
@@ -292,20 +292,15 @@ const $router = inject('$router');
 const $route = inject('$route');
 
 const $mitt = inject('$mitt');
-const $user = inject('$user');
 const $breakpoint = inject('$breakpoint');
 const $menuOpened = inject('$menuOpened');
-const menu = ref('contacts');
+const menu = ref();
 const component = shallowRef(null);
 const menuRegistry = {
 	contacts: {
 		component: 'Menu_Contacts',
 		subName: 'My Contacts',
 	},
-	//backup: {
-	//	component: 'Menu_Backup',
-	//	subName: 'Backup & Share',
-	//},
 	rooms: {
 		component: 'Menu_Rooms',
 		subName: 'Rooms',
@@ -321,15 +316,20 @@ const menuRegistry = {
 };
 
 onMounted(async () => {
-	const registry = menuRegistry[menu.value];
-	component.value = await defineAsyncComponent(() => import(`./views/${registry.component}.vue`));
+	if (menu.value) {
+		const registry = menuRegistry[menu.value];
+		component.value = await defineAsyncComponent(() => import(`./views/${registry.component}.vue`));
+	}
 });
 
 watch(
 	() => menu.value,
 	async (newVal) => {
-		const registry = menuRegistry[newVal];
-		component.value = await defineAsyncComponent(() => import(`./views/${registry.component}.vue`));
+		if (newVal) {
+			console.log('MENU SET 2', newVal);
+			const registry = menuRegistry[newVal];
+			component.value = await defineAsyncComponent(() => import(`./views/${registry.component}.vue`));
+		}
 	},
 );
 
@@ -344,12 +344,4 @@ watch(
 		}
 	},
 );
-
-const addAction = () => {
-	if (menu.value === 'chats') $mitt.emit('modal::open', { id: 'new_chat' });
-	if (menu.value === 'rooms') $mitt.emit('modal::open', { id: 'new_room' });
-	if (menu.value === 'contacts') $mitt.emit('modal::open', { id: 'add_contact_handshake' });
-	//if (menu.value === 'backup') $router.push({ name: 'backup_create' });
-	$menuOpened.value = false;
-};
 </script>

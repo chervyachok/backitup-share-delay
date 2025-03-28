@@ -1,6 +1,6 @@
 <template>
 	<FullContentBlock v-if="$user.account">
-		<template #header> Transactions </template>
+		<template #header><div class="fw-bold fs-5 py-1">Transactions</div> </template>
 		<template #content>
 			<div class="_full_width_block">
 				<div class="d-flex align-items-center justify-content-between mb-2" v-if="data.query && !onlyLast">

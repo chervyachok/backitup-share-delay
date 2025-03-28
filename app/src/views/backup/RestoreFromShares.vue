@@ -46,7 +46,7 @@
 			</div>
 			<div class="fs-4 mb-4 text-center">
 				<span class="fw-bold">{{ account.name ? account.name : 'Unnamed' }}</span>
-				<span class="text-secondary ms-2">[{{ account.publicKey.slice(-4) }}]</span>
+				<span class="text-secondary ms-2">[{{ account.publicKey.slice(-5) }}]</span>
 			</div>
 
 			<div class="col-30 col-md-20">
@@ -75,13 +75,14 @@ const $web3 = inject('$web3');
 const $swal = inject('$swal');
 const $user = inject('$user');
 const $appstate = inject('$appstate');
+const $encryptionManager = inject('$encryptionManager');
 
 const secretText = ref();
 const account = ref();
 
 const emit = defineEmits(['restore', 'account']);
 
-onMounted(() => {
+onMounted(async () => {
 	if ($appstate.value.shareToRestore) {
 		shares.value.push($appstate.value.shareToRestore);
 		$appstate.value.shareToRestore = null;
@@ -91,19 +92,57 @@ onMounted(() => {
 });
 
 const isInVault = computed(() => {
-	return $user.vaults.find((e) => e.privateKey.toLowerCase() === account.value.privateKey.toLowerCase());
+	return $user.vaults.find((e) => e.publicKey === account.value.publicKey);
 });
 
-const addAccount = () => {
-	const idx = $user.vaults.findIndex((a) => a.privateKey.toLowerCase() === account.value.privateKey.toLowerCase());
-	if (idx > -1) {
-		$user.vaults[idx] = account.value;
-	} else {
-		$user.vaults.push();
+const addAccount = async () => {
+	if (isInVault.value) {
 	}
-	$user.logout();
-	$user.account = account.value;
-	$user.updateVault();
+	try {
+		await $user.logout();
+		await $encryptionManager.createVault({
+			keyOptions: {
+				username: account.value.name,
+				displayName: account.value.name,
+			},
+			address: account.value.address,
+			publicKey: account.value.publicKey,
+			avatar: account.value.avatar,
+			notes: account.value.notes,
+		});
+		console.log('create create');
+		$user.account = await $user.generateAccount(account.value.privateKey);
+
+		await $user.createSpace();
+		await $user.openSpace({
+			name: account.value.name,
+			notes: account.value.notes,
+			avatar: account.value.avatar,
+		});
+
+		if (account.value.offchain) {
+			try {
+				const extra = (await axios.get(IPFS_URL + account.value.offchain)).data;
+				const d = await decryptWithPrivateKey(account.value.privateKey.slice(2), extra);
+
+				const decExtra = JSON.parse(d);
+
+				if (decExtra.contacts) {
+					await $user.initializeContacts(decExtra.contacts);
+				}
+			} catch (error) {
+				console.log('initializeContacts', error);
+			}
+		}
+	} catch (error) {
+		console.log(error);
+		$swal.fire({
+			icon: 'error',
+			title: 'Recover error',
+			footer: errorMessage(error),
+			timer: 30000,
+		});
+	}
 
 	emit('account', account.value);
 };
@@ -129,32 +168,6 @@ const checkAccountRestore = async (s) => {
 		const dec = JSON.parse(s);
 
 		if (dec.account && dec.account.privateKey) {
-			const acc = dec.account;
-
-			const wallet = new Wallet(acc.privateKey);
-			const signature = await wallet.signMessage(acc.privateKey);
-			const meta = await $web3.bukitupClient.generateKeysFromSignature(signature);
-
-			acc.address = wallet.address;
-			acc.metaPublicKey = meta.spendingKeyPair.account.publicKey;
-			acc.metaPrivateKey = meta.spendingKeyPair.privatekey;
-
-			if (dec.offchain) {
-				try {
-					const extra = (await axios.get(IPFS_URL + dec.offchain)).data;
-					const d = await decryptWithPrivateKey(acc.privateKey.slice(2), extra);
-
-					const decExtra = JSON.parse(d);
-
-					if (decExtra.contacts) {
-						acc.contacts = decExtra.contacts || [];
-						acc.chats = decExtra.chats || [];
-						acc.rooms = decExtra.rooms || [];
-					}
-				} catch (error) {
-					console.log(error);
-				}
-			}
 			console.log(acc);
 			account.value = acc;
 		}

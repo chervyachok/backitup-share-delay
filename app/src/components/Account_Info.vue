@@ -1,10 +1,10 @@
 <template>
-	<div class=" " v-if="accountIn && account">
+	<div class=" " v-if="account">
 		<div class="_avatar">
 			<div class="_wrap">
 				<div class="_img_wrap">
-					<Avatar :name="account.address" variant="bauhaus" v-if="account.address && !account?.avatar && !accountIn?.avatar" />
-					<img :src="account.avatar?.dataUrl || mediaUrl(accountIn?.avatar)" v-if="account?.avatar || accountIn?.avatar" />
+					<Avatar :name="account.address" variant="bauhaus" v-if="account.address && !account.avatar" />
+					<img :src="mediaUrl(account.avatar)" v-if="account.avatar" />
 				</div>
 
 				<a href="#" class="btn btn-dark rounded-pill p-2" @click.prevent="$refs.avatarImageInput.click()">
@@ -18,22 +18,40 @@
 			<div class="mb-2">
 				<label for="name" class="form-label">
 					Name
-					<span class="small ms-1 opacity-50" v-if="account.name && accountIn?.name !== account.name">({{ maxNameLength - account.name.length }} left)</span>
 					<span class="small ms-1 opacity-50" v-if="!account.name">({{ maxNameLength }} characters max)</span>
 				</label>
-				<input class="form-control" id="name" placeholder="any name you want (visible only to you)" type="text" rows="1" v-model="account.name" :class="{ 'fw-bold': account.name }" />
+				<input
+					class="form-control"
+					id="name"
+					placeholder="any name you want (visible only to you)"
+					type="text"
+					rows="1"
+					v-model="account.name"
+					:class="{ 'fw-bold': account.name }"
+					v-if="!self"
+				/>
+				<input
+					class="form-control"
+					id="name"
+					placeholder="any name you want (visible only to you)"
+					type="text"
+					rows="1"
+					v-model="$user.accountInfo.name"
+					:class="{ 'fw-bold': $user.accountInfo.name }"
+					v-else
+				/>
 			</div>
 
 			<div class="mb-2">
 				<label for="notes" class="form-label">
 					Notes
-					<span class="small ms-1 opacity-50" v-if="account.notes && accountIn?.notes !== account.notes">({{ maxNotesLength - account.notes.length }} left)</span>
 					<span class="small ms-1 opacity-50" v-if="!account.notes">({{ maxNotesLength }} characters max)</span>
 				</label>
-				<textarea id="notes" class="form-control" placeholder="private note (visible only to you)" type="text" rows="2" v-model="account.notes"></textarea>
+				<textarea id="notes" class="form-control" placeholder="private note (visible only to you)" type="text" rows="2" v-model="account.notes" v-if="!self"></textarea>
+				<textarea id="notes" class="form-control" placeholder="private note (visible only to you)" type="text" rows="2" v-model="$user.accountInfo.notes" v-else></textarea>
 			</div>
 
-			<div class="mb-2" v-if="account.publicKey && $route.name !== 'login'">
+			<div class="mb-2" v-if="account.publicKey">
 				<label class="form-label d-flex justify-content-between">
 					<div>Public key</div>
 					<div class="d-flex align-items-center">
@@ -62,7 +80,7 @@
 
 <style lang="scss" scoped>
 @import '@/scss/variables.scss';
-
+@import '@/scss/breakpoints.scss';
 ._avatar {
 	display: flex;
 	justify-content: center;
@@ -70,8 +88,12 @@
 	._wrap {
 		position: relative;
 		._img_wrap {
-			width: 14rem;
-			height: 14rem;
+			width: 10rem;
+			height: 10rem;
+			@include media-breakpoint-up(sm) {
+				width: 14rem;
+				height: 14rem;
+			}
 			border-radius: 50%;
 			border: 5px solid $white;
 			overflow: hidden;
@@ -99,6 +121,7 @@ import copyToClipboard from '@/utils/copyToClipboard';
 import errorMessage from '@/utils/errorMessage';
 import Avatar from 'vue-boring-avatars';
 import { mediaUrl } from '@/utils/mediaUrl';
+import { uploadToIPFS } from '@/api/ipfs';
 
 const $swal = inject('$swal');
 const $loader = inject('$loader');
@@ -108,24 +131,18 @@ const $mitt = inject('$mitt');
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const maxNameLength = 30;
 const maxNotesLength = 300;
-const account = ref();
 
 const emit = defineEmits(['update']);
+const account = ref();
 
-const { accountIn } = defineProps({
+const { accountIn, self } = defineProps({
 	accountIn: { type: Object },
+	self: { type: Boolean },
 });
 
 onMounted(async () => {
 	//console.log('accountIn', accountIn);
 	account.value = JSON.parse(JSON.stringify(accountIn));
-
-	watch(
-		() => accountIn?.address,
-		(newVal) => {
-			if (newVal) account.value = JSON.parse(JSON.stringify(accountIn));
-		},
-	);
 
 	watch(
 		() => account.value.name,
@@ -134,7 +151,6 @@ onMounted(async () => {
 			emit('update', account.value);
 		},
 	);
-
 	watch(
 		() => account.value.notes,
 		(newVal) => {
@@ -142,12 +158,18 @@ onMounted(async () => {
 			emit('update', account.value);
 		},
 	);
-
 	watch(
 		() => account.value.avatar,
 		() => {
 			emit('update', account.value);
 		},
+	);
+	watch(
+		() => accountIn,
+		(newVal) => {
+			if (newVal) account.value = JSON.parse(JSON.stringify(accountIn));
+		},
+		{ deep: true },
 	);
 });
 
@@ -174,9 +196,12 @@ const handleImage = async (event) => {
 		reader.onload = function (readerEvent) {
 			var image = new Image();
 			image.onload = async function () {
-				account.value.avatar = imageResize(image, 300, 0.8);
+				const { dataUrl, blobFile } = imageResize(image, 300, 0.8);
+				if (dataUrl) {
+					account.value.avatar = await uploadToIPFS(blobFile);
+					emit('update', account.value);
+				}
 				$loader.hide();
-				emit('update', account.value);
 			};
 			image.src = readerEvent.target.result;
 		};

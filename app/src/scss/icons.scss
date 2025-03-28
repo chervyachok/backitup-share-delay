@@ -23,6 +23,7 @@ $_icons: (
 	'copy',
 	'delete',
 	'edit',
+	'edit_pen',
 	'warning',
 	'reload',
 	'info',
@@ -41,7 +42,8 @@ $_icons: (
 	'shares_num',
 	'timer',
 	'notifications',
-	'tag'
+	'tag',
+	'unlock'
 );
 
 @each $name in $_icons {

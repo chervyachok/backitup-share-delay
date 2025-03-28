@@ -3,11 +3,11 @@ import { createApp } from 'vue';
 import App from './App.vue';
 
 //
-import './scss/app.scss';
 import 'bootstrap';
+import './scss/app.scss';
 
-import { WagmiPlugin } from '@wagmi/vue';
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
+//import { WagmiPlugin } from '@wagmi/vue';
+//import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 
 import { web3Store } from './store/web3.store.js';
 import { userStore } from './store/user.store.js';
@@ -28,13 +28,13 @@ import globalFilters from './libs/filters';
 import * as $enigma from './libs/enigma';
 import { EncryptionManager } from './libs/EncryptionManager';
 
-const queryClient = new QueryClient();
+//const queryClient = new QueryClient();
 const app = createApp(App);
 
-import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
-
 const pinia = createPinia();
-pinia.use(piniaPluginPersistedstate);
+
+//import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
+//pinia.use(piniaPluginPersistedstate);
 
 // Pinia
 app.use(pinia);
@@ -72,13 +72,13 @@ app.config.globalProperties.$loader = useLoader();
 app.provide('$loader', useLoader());
 
 app.provide('$enigma', $enigma);
-app.provide('$encryptionManager', new EncryptionManager());
+app.provide('$encryptionManager', new EncryptionManager(IS_PRODUCTION));
 
 app.config.globalProperties.$swal = $swal;
 app.provide('$swal', $swal);
 
-app.use(WagmiPlugin, { config: web3Store().wagmiAdapter.wagmiConfig });
-app.use(VueQueryPlugin, { queryClient });
+//app.use(WagmiPlugin, { config: web3Store().wagmiAdapter.wagmiConfig });
+//app.use(VueQueryPlugin, { queryClient });
 // router
 import router from './router';
 app.use(router);

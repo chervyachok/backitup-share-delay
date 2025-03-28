@@ -1,12 +1,11 @@
 import QRCode from 'qrcode';
-//import { Html5Qrcode } from 'html5-qrcode';
 import { utils } from 'ethers';
 import * as $enigma from './enigma';
-//import QRCodeStyling from 'qr-code-styling';
 import QrScanner from 'qr-scanner';
 
 export default class QRHandshakeManager extends EventTarget {
 	constructor(container, account, options) {
+		console.log('QRHandshakeManager', account);
 		super();
 		this.account = account;
 		this.container = container;
@@ -34,38 +33,34 @@ export default class QRHandshakeManager extends EventTarget {
 		this.container.innerHTML = this.getTemplate();
 		this.qrCodeWrapper = this.container.querySelector('._qrh_wrapper');
 		this.qrCode = this.container.querySelector('#qrCode');
-		this.qrScanner = new QrScanner(
-			this.container.querySelector('#qrScanner'),
-			(result) => this.readQr(result.data),
-			{
-				returnDetailedScanResult: true,
-				preferredCamera: 'user',
-				highlightScanRegion: true,
-				highlightCodeOutline: true,
-				calculateScanRegion: (video) => {
-					const width = video.videoWidth;
-					const height = video.videoHeight;
-					const scanSize = 1; // 100% of video size
-					return {
-						x: (width * (1 - scanSize)) / 2, // Center horizontally
-						y: (height * (1 - scanSize)) / 2, // Center vertically
-						width: width * scanSize, // 80% width
-						height: height * scanSize, // 80% height
-					};
-				},
+		this.qrScanner = new QrScanner(this.container.querySelector('#qrScanner'), (result) => this.readQr(result.data), {
+			returnDetailedScanResult: true,
+			preferredCamera: 'user',
+			highlightScanRegion: true,
+			highlightCodeOutline: true,
+			calculateScanRegion: (video) => {
+				const width = video.videoWidth;
+				const height = video.videoHeight;
+				const scanSize = 0.95; // 100% of video size
+				return {
+					x: (width * (1 - scanSize)) / 2, // Center horizontally
+					y: (height * (1 - scanSize)) / 2, // Center vertically
+					width: width * scanSize, // 80% width
+					height: height * scanSize, // 80% height
+				};
 			},
-		);
+		});
 	}
 
 	getTemplate() {
 		return `
         <div class="_qrh">
-			<div class="_qrh_wrapper" id="qrCodeWrapper" style="display: none;">
+			<div class="_qrh_wrapper" id="qrCodeWrapper" >
 				<div class="_qrh_container">
 					<canvas id="qrCode"></canvas>
 				</div>
 			</div>
-			<div class="_qrh_scanner">
+			<div class="_qrh_scanner" id="qrScannerWrap">
 				<video id="qrScanner"></video>
 			</div>
         </div>
@@ -85,19 +80,14 @@ export default class QRHandshakeManager extends EventTarget {
 		if (this.qrCode && this.state.challenge) {
 			let color = this.options.scanningColor;
 			if (this.state.contactChallenge && !this.state.signature) {
-				this.state.signature = $enigma.signChallenge(
-					this.state.contactChallenge + this.account.name,
-					this.account.privateKeyB64,
-				);
+				this.state.signature = $enigma.signChallenge(this.state.contactChallenge + this.account.name, this.account.privateKeyB64);
 				if ('vibrate' in navigator) navigator.vibrate([50]);
 			}
 
-			const displayName = this.state.signature
-				? utils.base58.encode(new TextEncoder().encode(this.account.name))
-				: '';
+			const displayName = this.state.signature ? utils.base58.encode(new TextEncoder().encode(this.account.name)) : '';
 
 			const msg = `${this.state.verified}${this.state.challenge}${this.state.signature || ''}${displayName}`;
-			console.log('msg1', msg, this.state.verified, this.state.challenge, this.state.signature, displayName);
+			console.log('msg1', msg, this.state.verified, this.state.challenge, this.state.signature, this.account.name, displayName);
 
 			if (this.state.signature) color = this.options.detectedColor;
 			if (this.state.verified && this.state.contactVerified) color = this.options.verifiedColor;
@@ -139,28 +129,42 @@ export default class QRHandshakeManager extends EventTarget {
 		}
 	}
 
-	toggleScanner() {
-		if (this.scanning && this.qrScanner) {
-			this.qrScanner.stop();
-			//this.dispose();
-			this.scanning = false;
-			this.container.querySelector('#qrCodeWrapper').style.display = 'none';
-			this.emitEvent('scanning', this.scanning);
-			this.updateQr();
-			return;
-		}
-		this.reset();
-		this.generateChallenge();
-		this.scanning = true;
-		this.container.querySelector('#qrCodeWrapper').style.display = 'flex';
-		this.emitEvent('scanning', this.scanning);
-		this.updateQr();
-
+	async toggleScanner() {
 		try {
-			this.qrScanner.start();
+			if (this.scanning && this.qrScanner) {
+				this.qrScanner.stop();
+				//this.dispose();
+				this.scanning = false;
+				this.container.querySelector('#qrCodeWrapper').style.display = 'none';
+				this.emitEvent('scanning', this.scanning);
+				this.updateQr();
+				return;
+			}
+			this.reset();
+			this.scanning = true;
+			this.emitEvent('scanning', this.scanning);
+			await this.wait(100);
+			await this.qrScanner.start();
+
+			await this.showCountdown(3);
+
+			this.generateChallenge();
+			this.container.querySelector('#qrCodeWrapper').style.height = 'unset';
+			//this.container.querySelector('#qrScannerWrap').style.opacity = 0;
+
+			this.updateQr();
 		} catch (error) {
 			console.error('Init Scanning error:', error);
 		}
+	}
+
+	async showCountdown(seconds) {
+		for (let i = seconds; i > 0; i--) {
+			this.emitEvent('handshakeCountdown', i); // 👈 Send countdown value to UI
+			console.log(i); // ✅ Log countdown in console
+			await new Promise((resolve) => setTimeout(resolve, 1000)); // ⏳ Wait 1 second
+		}
+		this.emitEvent('handshakeCountdown', 0); // 🚀 Notify UI to start
 	}
 
 	readQr(msg) {
@@ -171,7 +175,7 @@ export default class QRHandshakeManager extends EventTarget {
 			const signature = msg.length > 19 ? msg.slice(19, 107) : null; // 19th to 107th char (if present)
 			const displayNameEnc = msg.length > 107 ? msg.slice(107) : null;
 
-			console.log('msg', { msg, verified, challenge, signature, displayNameEnc });
+			console.log('msg', { length: msg.length, msg, verified, challenge, signature, displayNameEnc });
 
 			if (challenge) {
 				const decodedChallengeBytes = utils.base58.decode(challenge);
@@ -189,13 +193,8 @@ export default class QRHandshakeManager extends EventTarget {
 						const decodedNameBytes = utils.base58.decode(displayNameEnc);
 						const displayName = new TextDecoder().decode(decodedNameBytes);
 
-						const publicKeyCompact = $enigma.recoverPublicKey(
-							this.state.challenge + displayName,
-							signature,
-						);
-						const publicKey = utils.computePublicKey(
-							'0x' + $enigma.convertPublicKeyToHex(publicKeyCompact),
-						);
+						const publicKeyCompact = $enigma.recoverPublicKey(this.state.challenge + displayName, signature);
+						const publicKey = utils.computePublicKey('0x' + $enigma.convertPublicKeyToHex(publicKeyCompact));
 
 						this.state.contactAddress = utils.computeAddress(publicKey);
 						this.state.contactPublicKey = publicKeyCompact;

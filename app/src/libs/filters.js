@@ -1,6 +1,5 @@
 import { BigNumber, utils } from 'ethers';
 import dayjs from 'dayjs';
-import { formatUnits } from 'viem'
 
 export default {
 	addressShort(tokenAddress) {
@@ -42,29 +41,28 @@ export default {
 		var m = Math.floor((seconds % 3600) / 60);
 		var s = Math.floor(seconds % 60);
 
-		var dDisplay = d > 0 ? d + ` day${ d > 1 ? 's':'' } ` : '';
-		var hDisplay = h > 0 ? h + ` hour${ h > 1 ? 's':'' } ` : '';
-		var mDisplay = m > 0 ? m + ` minute${ m > 1 ? 's':'' } ` : '';
-		let sDisplay = ''
+		var dDisplay = d > 0 ? d + ` day${d > 1 ? 's' : ''} ` : '';
+		var hDisplay = h > 0 ? h + ` hour${h > 1 ? 's' : ''} ` : '';
+		var mDisplay = m > 0 ? m + ` minute${m > 1 ? 's' : ''} ` : '';
+		let sDisplay = '';
 		if (d == 0 && h == 0 && m == 0 && s) {
-			sDisplay = s > 0 ? s + ` second${ s > 1 ? 's':'' } ` : '';
-			
+			sDisplay = s > 0 ? s + ` second${s > 1 ? 's' : ''} ` : '';
 		}
 		//;
 		return (dDisplay + hDisplay + mDisplay + sDisplay).trim(); // + sDisplay;
 	},
 
 	relativeTimeTo(time, curr) {
-		
 		const remainingTime = dayjs(time).diff(dayjs.unix(curr), 'seconds'); // Get difference in seconds
-		if (remainingTime <= 3599) { // Less than or equal to 1 hour
-		  const minutes = Math.floor(remainingTime / 60);
-		  const seconds = remainingTime % 60;
-		  return `in ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+		if (remainingTime <= 3599) {
+			// Less than or equal to 1 hour
+			const minutes = Math.floor(remainingTime / 60);
+			const seconds = remainingTime % 60;
+			return `in ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 		}
-	
-		return dayjs().to(time)
-	  },
+
+		return dayjs().to(time);
+	},
 
 	toUpperCase(val) {
 		return val.toUpperCase();
@@ -78,20 +76,19 @@ export default {
 		}
 	},
 
-	formatUnits(val, decimals = 18, fixed = 0) {		
+	formatUnits(val, decimals = 18, fixed = 0) {
 		if (val === null || val === undefined) return '--';
 		if (typeof val === 'string') val = BigInt(parseInt(val));
 		//BigInt.isBigNumber
 		//if (!BigNumber.isBigNumber(val)) return '--';
-		
-		let n = parseFloat(formatUnits(val, decimals)).toFixed(fixed) 
-		return n
+
+		let n = parseFloat(utils.formatUnits(val, decimals)).toFixed(fixed);
+		return n;
 		//if (n.match(/\./)) n = n.replace(/\.?0+$/, '');
-		n =  n.slice(0, (n.indexOf(".")) + fixed + 1)
-		return this.numberWithCommas(n, fixed); //.replace(/\.0+$/,'');		
+		n = n.slice(0, n.indexOf('.') + fixed + 1);
+		return this.numberWithCommas(n, fixed); //.replace(/\.0+$/,'');
 	},
 
-	
 	weiToBn(val) {
 		if (val === null || val === undefined) return null;
 		if (typeof val === 'string') return BigNumber.from(val);
@@ -108,10 +105,10 @@ export default {
 	numberWithCommas(x, fixed) {
 		if (x === undefined || x === null || x === '--') return '--';
 		if (x === '--' || x === 'ERROR') return x;
-		return parseFloat(parseFloat(x).toFixed(fixed))
+		return parseFloat(parseFloat(x).toFixed(fixed));
 		//console.log(parseFloat(parseFloat(x).toFixed(fixed)))
 		var parts = parseFloat(parseFloat(x).toFixed(fixed)).toLocaleString('fullwide', { useGrouping: false }).split('.');
-		
+
 		parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 		return parts.join('.');
 	},

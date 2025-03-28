@@ -1,227 +1,434 @@
 import { defineStore } from 'pinia';
-import { ref, inject } from 'vue';
 import * as $enigma from '../libs/enigma';
 import { utils, Wallet } from 'ethers';
 import { web3Store } from './web3.store';
-import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
+//import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
+import dayjs from 'dayjs';
+import { ref, watch, onMounted, onUnmounted, shallowRef, inject, nextTick, reactive } from 'vue';
+import { Client, Config } from '@dxos/client';
+import { Defaults } from '@dxos/config';
+import { Expando, create } from '@dxos/client/echo';
+import { SpaceMember } from '@dxos/protocols/proto/dxos/halo/credentials';
+import { clearLockKeyCache } from '@lo-fi/local-data-lock';
 
 export const userStore = defineStore(
 	'user',
 	() => {
+		const dxClient = shallowRef(
+			new Client({
+				config: new Config(Defaults()),
+			}),
+		);
+
+		let encryptionManager = null; // Store injected instance
+		const setEncryptionManager = (manager) => {
+			encryptionManager = manager;
+		};
+
 		const account = ref();
 		const defaultAvatar = '/img/profile.webp';
 
-		//const $swalModal = inject('$swalModal');
+		const accountInfoKeys = ['name', 'notes', 'avatar'];
+		const contactKeys = ['publicKey', 'address', 'name', 'notes', 'avatar', 'hidden', 'metaPublicKey'];
+		const backupKeys = ['tag', 'shares'];
 
+		const accountInfo = reactive({});
+		let accountInfoDx;
+		const space = shallowRef();
+		const contacts = reactive([]);
+		const contactsDx = reactive([]);
 		const transactions = ref([]);
 
-		const vaults = ref([
+		const backups = reactive([]);
+		const backupsDx = reactive([]);
+
+		const vaults = ref([]);
+
+		const vaults2 = ref([
 			{
 				address: '0x748d9c35b6bFD0AD3E05d891Ad97855c314C49ED',
 				privateKey: '0xd292bd04cecd27f8ff12dad85b71b1d62a6da29863a94341ac618a5049494f9f',
-				privateKeyB64: '0pK9BM7NJ/j/EtrYW3Gx1iptophjqUNBrGGKUElJT58=',
-				publicKey: '0x028b1cc67b1524038c8445e0ab4a383d0bb02f4e75b8f7eee6bae33eff14781e7a',
-				publicKeyB64: 'AoscxnsVJAOMhEXgq0o4PQuwL051uPfu5rrjPv8UeB56',
-				metaPublicKey: '0x0469ac33afa06c7c9da136c2604172a2969fd6dc1e65316e19e36463ffb1e4891e6e9c0c183bbb592183c81470dffd54f764ccd78e5aaa484eeb82bded821f85da',
-				metaPrivateKey: '0x1559a9de3c10299fee40e18bf44845400f26080c05f4d11398a7fa9ccd1663d4',
 				name: 'Roman Chvankov',
 				notes: 'BuckitUp working profile',
 				avatar: 'bafybeiaygoakof2slx3spdoy2nf6bqdghurqvfucka2mslh7b54bhhfim4',
-				contacts: [
-					{
-						publicKey: '0x02bf7a036d76c748bcd23619d0961eff9f813715e3df83562c90d48c100ef2b7cc',
-						address: '0xAc3e4a2D4609309A837DF653Cbd71b1589bb2E65',
-						name: 'Arkadiy',
-						notes: 'BuckitUp boss',
-					},
-					{
-						publicKey: '0x02ee7928ca1750ce9fc0e870a780087f2bd5b5fed29d6a3b9cfd82004bb755f4b1',
-						address: '0xAC31746448cdcC7e72915F68185372FF63a10279',
-						name: 'Sergey',
-						notes: 'BuckitUp lead dev',
-					},
-					{
-						address: '0x7257253d64871377f3563cB533aF715927CE5Ea9',
-						publicKey: '0x02e066aae9b2f0efe43b0f604b1398ce38914e77cb61c645bb5bdde61a07523ee8',
-						name: 'Alice Johnson',
-						notes: 'A long-time friend and crypto enthusiast.',
-						avatar: 'bafybeicmqczqlcfstoc242b4rfgdcsiyr7znqczisqfjxmrgoh5w4w7owi',
-					},
-					{
-						address: '0x96103B125c6FD386B1901138d1Ebfcad18A70d29',
-						publicKey: '0x02883c1f0e26d20fbf7944fbf0662e2e21e6c8416b11b7778671a8555a38f9a847',
-						name: 'Bob Smith',
-						notes: 'Met at a blockchain conference last year.',
-						avatar: 'bafybeiey4mhhezratch34l2py5jycdnk2l4bvp2oe26pr3pwmfd2jdjkxa',
-					},
-					{
-						address: '0x4cb87d2842691b21529082189839Dd6F9f82a7Fd',
-						publicKey: '0x03cb59130c8daef1ad3a9c59509bdf7a6ee20c112020317acdc5edaf2f4b3cc8a4',
-						name: 'Charlie Brown',
-						notes: 'Trusted trader and NFT collector.',
-						avatar: 'bafybeic7vhotto7c4kqgzmlechjjgbsrhyigzznl3e5wriuhpa527hqk64',
-					},
-					{
-						address: '0x699756A0c4663C04a87E1bF8b85ff165BADEd0dE',
-						publicKey: '0x0245934e1ace7a0cedb723f15893b3985179061f62e98e6cbbe1c9698fce09f977',
-						name: 'David Taylor',
-						notes: 'Specializes in decentralized finance (DeFi).',
-					},
-					{
-						address: '0x46d66a7EE137bD896E63f62658028Bb7DeAe9504',
-						publicKey: '0x02581d24eca4173aa9e06a85cd8e0548adf3605da210eb5a3eb2a22ac38b930cb5',
-						name: 'Eve Anderson',
-						notes: 'Always up to date with the latest crypto trends.',
-					},
-					{
-						address: '0xaA5AD169584DE3a4081d7eEaDeB88B48F3Fc99A3',
-						publicKey: '0x02db0d7100bf402b89069d11fc6701bdca52e0876a38a7d09c8808782e3c31d89f',
-						name: 'Frank Thomas',
-						notes: 'We collaborated on a smart contract project.',
-					},
-					{
-						address: '0x84B225D89C5D98882C3fBB054e45403C2943C483',
-						publicKey: '0x029ab62a5d196300dbe031050a8b91581982ea25e25cfe2f22ae4c853e10d8cc34',
-						name: 'Grace White',
-						notes: 'Knows a lot about Ethereum staking strategies.',
-					},
-					{
-						address: '0x1904937662053BD2c55E12F5782c9D82A7A76E82',
-						publicKey: '0x02e8582fabb113ed79864ede4eb100bb21cd3afde042e28deee0db3fbee1b074fc',
-						name: 'Hannah Harris',
-						notes: 'Runs a YouTube channel about crypto investing.',
-					},
-					{
-						address: '0x82B97cC2003832594EE8f70eFC21dDa5A2FF2eC1',
-						publicKey: '0x0306e297502b67f2746eb0112f0a26a8189b56a24f2b2759848eb362b1af70cdcb',
-						name: 'Ivan Martin',
-						notes: 'A passionate advocate for Web3 and privacy.',
-					},
-					{
-						address: '0xB096bF7842401EFB33A1950a022C11061Ea23298',
-						publicKey: '0x0244cdc749381572f5b501b89efbc4ba398d594323a1b83be8e209684a5f95db7f',
-						name: 'Julia Thompson',
-						notes: 'Highly skilled in Solidity and dApp development.',
-					},
-				],
 			},
 			{
 				address: '0xAc3e4a2D4609309A837DF653Cbd71b1589bb2E65',
 				privateKey: '0xd20ac7cb8e3a8c9e655fa729f4e6d836717233874a8722bf92097b102576c4e2',
-				privateKeyB64: '0grHy446jJ5lX6cp9ObYNnFyM4dKhyK/kgl7ECV2xOI=',
-				publicKey: '0x02bf7a036d76c748bcd23619d0961eff9f813715e3df83562c90d48c100ef2b7cc',
-				publicKeyB64: 'Ar96A212x0i80jYZ0JYe/5+BNxXj34NWLJDUjBAO8rfM',
-				metaPublicKey: '0x042ab05cfdff78f3f5ec165feaeff0a605b85f40383fb04780b35c59fb3a7b7cb883f7827002c360a06e650ce3701f8072bae1c100a656d87ce9c0e2469532ae0a',
-				metaPrivateKey: '0xc5a3ad0b7f6f81220b7ab870d7f23a6c9f187ebcc1f0a528fc7c414a2538d7bb',
 				name: 'Arkadiy',
 				notes: 'Testing profile',
-				contacts: [
-					{
-						publicKey: '0x028b1cc67b1524038c8445e0ab4a383d0bb02f4e75b8f7eee6bae33eff14781e7a',
-						address: '0x748d9c35b6bFD0AD3E05d891Ad97855c314C49ED',
-						name: 'Roman Chvankov',
-						notes: 'Blockchain dev',
-					},
-					//{
-					//  publicKey:
-					//    "0x02ee7928ca1750ce9fc0e870a780087f2bd5b5fed29d6a3b9cfd82004bb755f4b1",
-					//  address: "0xAC31746448cdcC7e72915F68185372FF63a10279",
-					//  name: "Sergey",
-					//  notes: "BuckitUp lead dev",
-					//},
-					{
-						address: '0x7257253d64871377f3563cB533aF715927CE5Ea9',
-						publicKey: '0x02e066aae9b2f0efe43b0f604b1398ce38914e77cb61c645bb5bdde61a07523ee8',
-						name: 'Alice Johnson',
-						notes: 'A long-time friend and crypto enthusiast.',
-						avatar: 'bafybeicmqczqlcfstoc242b4rfgdcsiyr7znqczisqfjxmrgoh5w4w7owi',
-					},
-					{
-						address: '0x96103B125c6FD386B1901138d1Ebfcad18A70d29',
-						publicKey: '0x02883c1f0e26d20fbf7944fbf0662e2e21e6c8416b11b7778671a8555a38f9a847',
-						name: 'Bob Smith',
-						notes: 'Met at a blockchain conference last year.',
-						avatar: 'bafybeiey4mhhezratch34l2py5jycdnk2l4bvp2oe26pr3pwmfd2jdjkxa',
-					},
-					{
-						address: '0x4cb87d2842691b21529082189839Dd6F9f82a7Fd',
-						publicKey: '0x03cb59130c8daef1ad3a9c59509bdf7a6ee20c112020317acdc5edaf2f4b3cc8a4',
-						name: 'Charlie Brown',
-						notes: 'Trusted trader and NFT collector.',
-						avatar: 'bafybeic7vhotto7c4kqgzmlechjjgbsrhyigzznl3e5wriuhpa527hqk64',
-					},
-					{
-						address: '0x699756A0c4663C04a87E1bF8b85ff165BADEd0dE',
-						publicKey: '0x0245934e1ace7a0cedb723f15893b3985179061f62e98e6cbbe1c9698fce09f977',
-						name: 'David Taylor',
-						notes: 'Specializes in decentralized finance (DeFi).',
-					},
-				],
 			},
 			{
 				address: '0xAC31746448cdcC7e72915F68185372FF63a10279',
 				privateKey: '0x4a06275ea3f9d5bb57b72b2c6d59fdbc12dbf00fd1d1ef6e2df7040b705333c5',
-				privateKeyB64: 'SgYnXqP51btXtyssbVn9vBLb8A/R0e9uLfcEC3BTM8U=',
-				publicKey: '0x02ee7928ca1750ce9fc0e870a780087f2bd5b5fed29d6a3b9cfd82004bb755f4b1',
-				publicKeyB64: 'Au55KMoXUM6fwOhwp4AIfyvVtf7SnWo7nP2CAEu3VfSx',
-				metaPublicKey: '0x0483efb6096c60d6966eb9e38b5a4c817e4d1c3d38592be30a6f0885baa69d680493332a04996b5abbf8d2ea1df151f013f145d9d89610e85b7ffa105fd22b1fee',
-				metaPrivateKey: '0x2babd837b464ed6100b9b7cfb2ecc68423e2f090b21e646050d9c8e32db3a5c9',
 				name: 'Sergey',
 				notes: 'Preview profile',
-				contacts: [
-					//{
-					//  publicKey:
-					//    "0x02bf7a036d76c748bcd23619d0961eff9f813715e3df83562c90d48c100ef2b7cc",
-					//  address: "0xAc3e4a2D4609309A837DF653Cbd71b1589bb2E65",
-					//  name: "Arkadiy",
-					//  notes: "BuckitUp boss",
-					//},
-					//{
-					//  publicKey:
-					//    "0x028b1cc67b1524038c8445e0ab4a383d0bb02f4e75b8f7eee6bae33eff14781e7a",
-					//  address: "0x748d9c35b6bFD0AD3E05d891Ad97855c314C49ED",
-					//  name: "Roman Chvankov",
-					//  notes: "Blockchain dev",
-					//}
-				],
 			},
 			{
 				address: '0xad145e1F9684f926996Bfe9d967c4E3bF55d35a3',
 				privateKey: '0xed0c62a9c2d2f8968ad14fb00a486653bae207cba2109720288912f065cc1e91',
-				privateKeyB64: '7QxiqcLS+JaK0U+wCkhmU7riB8uiEJcgKIkS8GXMHpE=',
-				publicKey: '0x03559e5e8d2494c90ab055408f0f6100be28d6bbc6bd9ee5b2ae697c347dfc81f4',
-				publicKeyB64: 'A1WeXo0klMkKsFVAjw9hAL4o1rvGvZ7lsq5pfDR9/IH0',
-				metaPublicKey: '0x04b4fd6cc548d005a7bf9dbbbec6bbfa729e19a77b7734891083bada802e56f78c90606735db64d483f2d4f26a5e237fff1ff49fd6c4ef8af034701b7cba4e12df',
-				metaPrivateKey: '0x0799a0d8a9a2ddf0cb437f71a777d1730c87e6cc72d8c994634d14c7ba590c7b',
-				rooms: [],
-				contacts: [],
 				name: 'Test1',
 				notes: 'wefwf',
 			},
 		]);
 
-		const ls = localStorage.getItem('user');
-		let lsd;
-
-		try {
-			lsd = JSON.parse(ls);
-		} catch (error) {}
-
-		//if (location.origin.includes('loc')) {account.value = lsd?.vaults[0] ? lsd.vaults[0] : vaults.value[0];}
-		//if (location.origin.includes('192')) account.value = lsd?.vaults[1] ? lsd.vaults[1] : vaults.value[1];
-		//if (location.origin.includes('buck')) account.value = lsd?.vaults[2] ? lsd.vaults[2] : vaults.value[2];
-
-		const logout = () => {
+		const logout = async () => {
+			await closeSpace();
+			await encryptionManager.disconnect();
+			clearLockKeyCache();
 			account.value = null;
+			Object.assign(accountInfo, {});
+			contacts.length = 0;
 			transactions.value = [];
+			space.value = null;
 		};
 
-		const updateVault = () => {
-			const idx = vaults.value.findIndex((v) => v.address === account.value.address);
-			if (idx > -1) vaults.value[idx] = account.value;
+		const updateVault = async () => {
+			//const idx = vaults.value.findIndex((v) => v.address === account.value.address);
+			//if (idx > -1) vaults.value[idx] = account.value;
 		};
+
+		const createSpace = async () => {
+			try {
+				space.value = await dxClient.value.spaces.create({ role: SpaceMember.Role.ADMIN }); //, encryptionKey: $user.account.metaPrivateKey
+				account.value.spaceId = space.value.id;
+				await encryptionManager.setData(toVaultFormat(account.value));
+				console.log('User space created', account.value.spaceId);
+			} catch (error) {
+				console.log('createSpace error', error);
+			}
+		};
+
+		const initializeAccountInfo = async (initialAccountInfo) => {
+			const existingAccountInfo = await space.value.db.query((doc) => doc.type === 'accountInfo').run();
+
+			if (existingAccountInfo.objects.length === 0) {
+				const filteredAccountInfo = accountInfoKeys.reduce((acc, key) => {
+					if (key in initialAccountInfo) {
+						acc[key] = $enigma.encryptDataSync(initialAccountInfo[key], account.value.privateKey);
+					}
+					return acc;
+				}, {});
+
+				accountInfoDx = create(Expando, {
+					...filteredAccountInfo,
+					updatedAt: dayjs().valueOf(),
+					type: 'accountInfo',
+				});
+				await space.value.db.add(accountInfoDx);
+				Object.assign(accountInfo, $enigma.decryptObjectKeys(accountInfoDx, accountInfoKeys, account.value.privateKey));
+				await encryptionManager.updateAccountInfoVault(accountInfo);
+
+				console.log('✅ Initial accountInfo added to DXOS Space', accountInfo);
+			} else {
+				const latestAccountInfo = await mergeAccountInfoDuplicates(existingAccountInfo.objects);
+				console.log('ℹ️ DXOS Space contains accountInfo', latestAccountInfo);
+				Object.assign(accountInfo, latestAccountInfo);
+			}
+		};
+
+		let contactUnsubscribe, isContactsUpdating, accountInfoUnsubscribe, isAccountInfoUpdating, backupsUnsubscribe, isBackupsUpdating;
+		const openSpace = async (initialAccountInfo) => {
+			try {
+				await space.value.waitUntilReady();
+				const accountInfoQuery = space.value.db.query((doc) => doc.type === 'accountInfo');
+				let existingAccountInfo = await accountInfoQuery.run();
+
+				if (existingAccountInfo.objects.length === 0) {
+					await initializeAccountInfo(initialAccountInfo);
+				} else {
+					accountInfoDx = await mergeAccountInfoDuplicates(existingAccountInfo.objects);
+					Object.assign(accountInfo, $enigma.decryptObjectKeys(accountInfoDx, accountInfoKeys, account.value.privateKey));
+					await encryptionManager.updateAccountInfoVault(accountInfo);
+				}
+
+				accountInfoUnsubscribe = accountInfoQuery.subscribe(async ({ objects }) => {
+					try {
+						accountInfoDx = await mergeAccountInfoDuplicates(objects);
+						Object.assign(accountInfo, $enigma.decryptObjectKeys(accountInfoDx, accountInfoKeys, account.value.privateKey));
+						await encryptionManager.updateAccountInfoVault(accountInfo);
+					} catch (error) {
+						console.log('-------accountInfo update------- error', error);
+					}
+				});
+			} catch (error) {
+				console.log('openSpace error', error);
+			}
+
+			try {
+				const contactsQuery = space.value.db.query((doc) => doc.type === 'contact');
+				const existingContacts = await contactsQuery.run();
+
+				const cd = await mergeContactsDuplicates(existingContacts.objects);
+				contactsDx.splice(0, contactsDx.length, ...cd);
+				//console.log(
+				//	'-------contactsDx------- ',
+				//	cd.map((contact) => contactKeys.map((k) => console.log(contact[k]))),
+				//);
+				contacts.splice(0, contacts.length, ...cd.map((contact) => $enigma.decryptObjectKeys(contact, contactKeys, account.value.privateKey)));
+				contactUnsubscribe = contactsQuery.subscribe(async ({ objects }) => {
+					try {
+						const cd = await mergeContactsDuplicates(objects);
+						//console.log(
+						//	'-------contactsDx------- subscribe',
+						//	cd.map((contact) => contactKeys.map((k) => contact[k])),
+						//);
+						contactsDx.splice(0, contactsDx.length, ...cd);
+						contacts.splice(0, contacts.length, ...cd.map((contact) => $enigma.decryptObjectKeys(contact, contactKeys, account.value.privateKey)));
+					} catch (error) {
+						console.log('-------contacts update------- error', error);
+					}
+				});
+			} catch (error) {
+				console.log('openSpace error', error);
+			}
+
+			try {
+				const backupsQuery = space.value.db.query((doc) => doc.type === 'backup');
+				const existingBackups = await backupsQuery.run();
+
+				const cd = await mergeBackupsDuplicates(existingBackups.objects);
+				backupsDx.splice(0, backupsDx.length, ...cd);
+				//console.log(
+				//	'-------contactsDx------- ',
+				//	cd.map((contact) => contactKeys.map((k) => console.log(contact[k]))),
+				//);
+				//contacts.splice(0, contacts.length, ...cd.map((contact) => $enigma.decryptObjectKeys(contact, contactKeys, account.value.privateKey)));
+				backupsUnsubscribe = backupsQuery.subscribe(async ({ objects }) => {
+					try {
+						const cd = await mergeBackupsDuplicates(objects);
+						//console.log(
+						//	'-------contactsDx------- subscribe',
+						//	cd.map((contact) => contactKeys.map((k) => contact[k])),
+						//);
+						backupsDx.splice(0, backupsDx.length, ...cd);
+						//contacts.splice(0, contacts.length, ...cd.map((contact) => $enigma.decryptObjectKeys(contact, contactKeys, account.value.privateKey)));
+					} catch (error) {
+						console.log('-------backups update------- error', error);
+					}
+				});
+			} catch (error) {
+				console.log('openSpace backups error', error);
+			}
+		};
+
+		const closeSpace = async () => {
+			if (accountInfoUnsubscribe) accountInfoUnsubscribe();
+			if (contactUnsubscribe) contactUnsubscribe();
+			if (backupsUnsubscribe) backupsUnsubscribe();
+
+			//try {
+			//	console.log('space.value', space.value);
+			//	space.value.disconnect(); // Ensure clean disconnection
+			//} catch (error) {
+			//	console.log('closeSpace error', error);
+			//}
+		};
+
+		const mergeContactsDuplicates = async (contactsList) => {
+			try {
+				const contactMap = new Map();
+				const duplicates = [];
+				contactsList.forEach((contact) => {
+					if (!contactMap.has(contact.publicKey)) {
+						contactMap.set(contact.publicKey, contact);
+					} else {
+						// Conflict detected: Two contacts with the same publicKey exist
+						const existing = contactMap.get(contact.publicKey);
+						// Keep the latest updated version
+						if (contact.updatedAt > existing.updatedAt) {
+							duplicates.push(existing); // Mark the older contact for deletion
+							contactMap.set(contact.publicKey, contact);
+						} else {
+							duplicates.push(contact); // Mark the newer one as a duplicate
+						}
+					}
+				});
+				// Prevent Infinite Loop: Only update DB if duplicates exist
+				if (duplicates.length > 0 && !isContactsUpdating) {
+					isContactsUpdating = true; // Lock updates
+					// Remove duplicates from DXOS
+					try {
+						for (const duplicate of duplicates) {
+							await space.value.db.remove(duplicate);
+						}
+					} catch (error) {
+						console.log('mergeContactsDuplicates space.value.db.remove error', error);
+					}
+
+					isContactsUpdating = false; // Unlock updates
+				}
+				return Array.from(contactMap.values()); // Return the merged list
+			} catch (error) {
+				console.log('mergeContactsDuplicates error', error);
+				return [];
+			}
+		};
+
+		const mergeAccountInfoDuplicates = async (docs) => {
+			try {
+				if (docs.length === 0) return null; // No accountInfo found
+				// Find the most recent accountInfo
+				let latestAccountInfo = docs[0];
+				for (const doc of docs) {
+					if (doc.updatedAt > latestAccountInfo.updatedAt) {
+						latestAccountInfo = doc;
+					}
+				}
+				// Remove older duplicates from DXOS
+				const duplicates = docs.filter((doc) => doc.id !== latestAccountInfo.id);
+				// Prevent Infinite Loop: Only update DB if duplicates exist
+				if (duplicates.length > 0 && !isAccountInfoUpdating) {
+					isAccountInfoUpdating = true; // Start update process
+					// Remove duplicates from DXOS
+					for (const duplicate of duplicates) {
+						await space.value.db.remove(duplicate);
+					}
+					isAccountInfoUpdating = false; // Reset flag after update
+				}
+				await encryptionManager.updateAccountInfoVault(latestAccountInfo);
+				return latestAccountInfo;
+			} catch (error) {
+				console.log('mergeAccountInfoDuplicates error', error);
+				return null;
+			}
+		};
+
+		const mergeBackupsDuplicates = async (list) => {
+			try {
+				const backupsMap = new Map();
+				const duplicates = [];
+				list.forEach((backup) => {
+					if (!backupsMap.has(backup.tag)) {
+						backupsMap.set(backup.tag, backup);
+					} else {
+						// Conflict detected: Two backups with the same publicKey exist
+						const existing = backupsMap.get(backup.tag);
+						// Keep the latest updated version
+						if (backup.updatedAt > existing.updatedAt) {
+							duplicates.push(existing); // Mark the older backup for deletion
+							backupsMap.set(backup.tag, backup);
+						} else {
+							duplicates.push(backup); // Mark the newer one as a duplicate
+						}
+					}
+				});
+				// Prevent Infinite Loop: Only update DB if duplicates exist
+				if (duplicates.length > 0 && !isBackupsUpdating) {
+					isBackupsUpdating = true; // Lock updates
+					// Remove duplicates from DXOS
+					try {
+						for (const duplicate of duplicates) {
+							await space.value.db.remove(duplicate);
+						}
+					} catch (error) {
+						console.log('mergeBackupsDuplicates space.value.db.remove error', error);
+					}
+
+					isBackupsUpdating = false; // Unlock updates
+				}
+				return Array.from(backupsMap.values()); // Return the merged list
+			} catch (error) {
+				console.log('mergeBackupsDuplicates error', error);
+				return [];
+			}
+		};
+
+		watch(
+			accountInfo,
+			async (newAccountInfo) => {
+				//console.log('watch accountInfo', newAccountInfo);
+				if (!accountInfoDx || !account.value) return;
+				const hasChanges = accountInfoKeys.some((key) => newAccountInfo[key] !== $enigma.decryptDataSync(accountInfoDx[key], account.value.privateKey));
+				if (hasChanges) {
+					//console.log('✅ Changes detected, updating DXOS object');
+					accountInfoKeys.forEach((key) => {
+						accountInfoDx[key] = $enigma.encryptDataSync(newAccountInfo[key], account.value.privateKey);
+					});
+					accountInfoDx.updatedAt = dayjs().valueOf();
+					console.log('✨ Updated DXOS object', accountInfoDx.id);
+				} else {
+					//console.log('⚡ No changes detected');
+				}
+			},
+			{ deep: true },
+		);
+		//watch(
+		//	contacts,
+		//	async (newContacts) => {
+		//		//console.log('watch accountInfo', newAccountInfo);
+		//		if (!contactsDx || !account.value) return;
+		//		const hasChanges = contactKeys.some((key) => newContacts[key] !== $enigma.decryptDataSync(accountInfoDx[key], account.value.privateKey));
+		//		if (hasChanges) {
+		//			//console.log('✅ Changes detected, updating DXOS object');
+		//			accountInfoKeys.forEach((key) => {
+		//				accountInfoDx[key] = $enigma.encryptDataSync(newAccountInfo[key], account.value.privateKey);
+		//			});
+		//			accountInfoDx.updatedAt = dayjs().valueOf();
+		//			console.log('✨ Updated DXOS object', accountInfoDx.id);
+		//		} else {
+		//			//console.log('⚡ No changes detected');
+		//		}
+		//	},
+		//	{ deep: true },
+		//);
+		//newAccountInfo.updatedAt = dayjs().valueOf()
+		//watch(
+		//	contacts,
+		//	async (newContacts) => {
+		//		console.log('watch contacts', newContacts);
+		//		for (const contact of newContacts) {
+		//			await space.db.update(contact);
+		//		}
+		//	},
+		//	{ deep: true },
+		//);
+
+		const addContact = async (contact) => {
+			const newContact = {
+				...contact,
+				updatedAt: dayjs().valueOf(),
+				type: 'contact',
+			};
+			await space.value.db.add(newContact);
+		};
+
+		const initializeContacts = async (initialContacts) => {
+			const existingContacts = await space.value.db.query((doc) => doc.type === 'contact').run();
+			if (existingContacts.objects.length === 0) {
+				// If there are no contacts, add all initial contacts
+				for (const contact of initialContacts) {
+					const contactDx = create(Expando, {
+						...contact,
+						updatedAt: dayjs().valueOf(),
+						type: 'contact',
+					});
+					await space.value.db.add(contactDx);
+					contacts.value.push(contactDx);
+				}
+				console.log('✅ Initial contacts added to DXOS Space!');
+			} else {
+				console.log('ℹ️ DXOS Space already contains contacts. Checking for missing ones...');
+				// Create a Set of existing contact publicKeys for quick lookup
+				const existingKeys = new Set(existingContacts.results.map((contact) => contact.publicKey));
+				// Find missing contacts and add only those
+				const missingContacts = initialContacts.filter((contact) => !existingKeys.has(contact.publicKey));
+				if (missingContacts.length > 0) {
+					for (const contact of missingContacts) {
+						await space.value.db.add(contact);
+					}
+					console.log(`✅ Added ${missingContacts.length} missing contacts.`);
+				} else {
+					console.log('✅ No missing contacts. Everything is up to date.');
+				}
+			}
+		};
+
 		const toVaultFormat = (user) => {
-			return user;
+			return {
+				privateKey: user.privateKey,
+				spaceId: user.spaceId,
+			};
 			return [
 				[user.name, $enigma.combineKeypair(user.privateKeyB64, user.publicKeyB64)],
 				user.rooms,
@@ -233,7 +440,10 @@ export const userStore = defineStore(
 		};
 
 		const fromVaultFormat = async (vault) => {
-			return vault;
+			return {
+				...(await generateAccount(vault.privateKey)),
+				spaceId: vault.spaceId,
+			};
 			const keys = $enigma.splitKeypair(vault[0][1]);
 			const privateKeyHex = '0x' + $enigma.convertPrivateKeyToHex(keys.privateKey);
 			const publicKeyHex = '0x' + $enigma.convertPrivateKeyToHex(keys.publicKey);
@@ -259,32 +469,63 @@ export const userStore = defineStore(
 			};
 		};
 
-		const generateAccount = async () => {
-			const keys = $enigma.generateKeypair();
-			const privateKeyHex = '0x' + $enigma.convertPrivateKeyToHex(keys.privateKey);
-			const publicKeyHex = '0x' + $enigma.convertPrivateKeyToHex(keys.publicKey);
-			const wallet = new Wallet(privateKeyHex);
-			const signature = await wallet.signMessage(privateKeyHex);
-			const meta = await web3Store().bukitupClient.generateKeysFromSignature(signature);
-			const account = {
-				address: wallet.address,
-				privateKey: privateKeyHex,
-				privateKeyB64: keys.privateKey,
-				publicKey: publicKeyHex,
-				publicKeyB64: keys.publicKey,
-				metaPublicKey: meta.spendingKeyPair.account.publicKey,
-				metaPrivateKey: meta.spendingKeyPair.privatekey,
-				rooms: [],
-				contacts: [],
-			};
-			//console.log('generateAccount',JSON.stringify(account, null, 2) )
-			return account;
+		const generateAccount = async (pk) => {
+			try {
+				let privateKeyHex, publicKeyHex, privateKeyB64, publicKeyB64;
+				if (!pk) {
+					const keys = $enigma.generateKeypair();
+					privateKeyHex = '0x' + $enigma.convertPrivateKeyToHex(keys.privateKey);
+					publicKeyHex = '0x' + $enigma.convertPrivateKeyToHex(keys.publicKey);
+					privateKeyB64 = keys.privateKey;
+					publicKeyB64 = keys.publicKey;
+				} else {
+					const prks = pk.slice(2);
+					const pbks = $enigma.getPublicKeyFromPrivateKey(prks);
+					privateKeyHex = pk;
+					publicKeyHex = '0x' + $enigma.convertPrivateKeyToHex(pbks);
+					privateKeyB64 = $enigma.stringToBase64($enigma.hexToUint8Array(prks));
+					publicKeyB64 = $enigma.stringToBase64(pbks);
+				}
+
+				const wallet = new Wallet(privateKeyHex);
+				const signature = await wallet.signMessage(privateKeyHex);
+				const meta = await web3Store().bukitupClient.generateKeysFromSignature(signature);
+				const account = {
+					address: wallet.address,
+					privateKey: privateKeyHex,
+					privateKeyB64,
+					publicKey: publicKeyHex,
+					publicKeyB64,
+					metaPublicKey: meta.spendingKeyPair.account.publicKey,
+					metaPrivateKey: meta.spendingKeyPair.privatekey,
+				};
+				//console.log('generateAccount', JSON.stringify(account, null, 2));
+				return account;
+			} catch (error) {
+				console.log('generateAccount error', error);
+			}
 		};
+
+		async function clearIndexedDB() {
+			return new Promise((resolve, reject) => {
+				let databases = indexedDB.databases();
+				databases.then((dbs) => {
+					let deletions = dbs.map((db) => indexedDB.deleteDatabase(db.name));
+					//deletions.push(db.createObjectStore('keyval', { keyPath: 'id' }));
+					Promise.all(deletions).then(resolve).catch(reject);
+				});
+			});
+		}
 
 		return {
 			vaults,
 			logout,
+
 			account,
+			accountInfo,
+			contacts,
+			contactsDx,
+
 			defaultAvatar,
 
 			transactions,
@@ -292,12 +533,28 @@ export const userStore = defineStore(
 			fromVaultFormat,
 			generateAccount,
 			updateVault,
+
+			dxClient,
+			space,
+			createSpace,
+			openSpace,
+			closeSpace,
+			initializeAccountInfo,
+			initializeContacts,
+
+			setEncryptionManager,
+			clearIndexedDB,
+			accountInfoKeys,
+			contactKeys,
+
+			backupsDx,
+			backupKeys,
 		};
 	},
-	{
-		persist: {
-			//storage: piniaPluginPersistedstate.localStorage(),
-			pick: ['vaults'],
-		},
-	},
+	//{
+	//	persist: {
+	//		//storage: piniaPluginPersistedstate.localStorage(),
+	//		pick: ['vaults'],
+	//	},
+	//},
 );

@@ -7,8 +7,8 @@
 		</div>
 		<ContactsList class="_list" @select="select" :selected="selected" :excluded="inputData.excluded" :meta-required="inputData.metaRequired" />
 
-		<div class="d-flex justify-content-center mt-2" v-if="selected.length">
-			<button class="btn btn-dark w-100" @click="applySelected()">Select</button>
+		<div class="d-flex justify-content-center mt-2" v-if="inputData.metaRequired">
+			<button class="btn btn-dark w-100" :disabled="!selected.length" @click="applySelected()">Select</button>
 		</div>
 	</div>
 </template>

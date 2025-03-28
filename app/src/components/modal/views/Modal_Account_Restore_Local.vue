@@ -107,7 +107,10 @@ const applyBackup = async (data) => {
 	try {
 		const account = data.account;
 
-		if (account && account.address && account.privateKey) {
+		if (account && account.privateKey) {
+			//$user.restore({
+			//
+			//})
 			const idx = $user.vaults.findIndex((a) => a.address.toLowerCase() === account.address.toLowerCase());
 			if (idx > -1) {
 				const confirmed = await $swalModal.value.open({

@@ -65,7 +65,7 @@
 	height: 100%;
 	width: 0;
 	z-index: 9;
-	background-color: rgba(0, 0, 0, 0.041);
+	background-color: rgba(0, 0, 0, 0.3);
 	//transition: backdrop-filter .3s ease;
 	pointer-events: none;
 	&._opened {
@@ -91,9 +91,6 @@
 		flex-direction: row;
 	}
 
-	._menu {
-	}
-
 	._main {
 		flex-grow: 1; // Takes remaining space
 		height: 100%; // Adjust height to fit bottom menu
@@ -108,13 +105,14 @@ import Modal from '@/components/modal/Modal_.vue';
 import Swal from '@/components/swal/Swal_.vue';
 import { ref, provide, watch, onMounted, inject, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useReadContract } from '@wagmi/vue';
+//import { useReadContract } from '@wagmi/vue';
 import axios from 'axios';
 
 const $socket = inject('$socket');
 const $mitt = inject('$mitt');
 const $user = inject('$user');
 const $breakpoint = inject('$breakpoint');
+const $encryptionManager = inject('$encryptionManager');
 const $web3 = inject('$web3');
 
 const $appstate = ref({});
@@ -149,6 +147,8 @@ const $isOnline = ref(navigator.onLine);
 provide('$isOnline', $isOnline);
 
 onMounted(async () => {
+	$user.setEncryptionManager($encryptionManager);
+
 	$socket.on('WALLET_UPDATE', walletUpdateListener);
 	window.addEventListener('online', () => ($isOnline.value = navigator.onLine));
 	window.addEventListener('offline', () => ($isOnline.value = navigator.onLine));
@@ -156,43 +156,31 @@ onMounted(async () => {
 		timestamp.value = Math.floor(Date.now().valueOf() / 1000);
 		setTimeout(tick, 1000);
 	}, 1000);
-	//$mitt.emit('modal::open', { id: 'add_contact_handshake' });
-	//for (let i = 0; i < 10; i++) {
-	//	const u = await $user.generateAccount()
-	//	console.log(JSON.stringify({
-	//		address: u.address,
-	//		publicKey: u.publicKey,
-	//	}, null, 2) )
-	//}
+
+	try {
+		await $user.dxClient.initialize();
+		if (!$user.dxClient.halo.identity.get()) {
+			await $user.dxClient.halo.createIdentity();
+		}
+	} catch (error) {
+		console.log('dxClient.initialize', error);
+	}
 });
 
 const walletUpdateListener = async (wallet) => {
 	if ($user.account?.address && $user.account?.address.toLowerCase() === wallet.toLowerCase()) {
 		$mitt.emit('WALLET_UPDATE');
 		try {
-			if (!$user.account.registeredMetaWallet) refetchMetaStealthPubKey();
+			if (!$user.accountInfo.registeredMetaWallet) {
+				const metaPublicKey = await $web3.registryContract.metaPublicKeys($user.account.address);
+				if (metaPublicKey && metaPublicKey.length > 2) {
+					$user.accountInfo.registeredMetaWallet = true;
+				}
+			}
 		} catch (error) {}
 		getUserTransactions();
 	}
 };
-
-const { data: metaStealthPubKey, refetch: refetchMetaStealthPubKey } = useReadContract({
-	address: $web3.bc.registry.address,
-	abi: JSON.parse($web3.bc.registry.abijson),
-	functionName: 'metaPublicKeys',
-	args: computed(() => [$user.account?.address]),
-	enabled: computed(() => !!$user.account?.address && !$user.account?.registeredMetaWallet),
-});
-
-watch(
-	() => metaStealthPubKey.value,
-	() => {
-		if ($user.account) {
-			$user.account.registeredMetaWallet = !!(metaStealthPubKey.value?.length > 2);
-			$user.updateVault();
-		}
-	},
-);
 
 const getUserTransactions = async () => {
 	try {

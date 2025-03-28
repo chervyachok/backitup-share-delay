@@ -1,14 +1,22 @@
 <template>
 	<div class="">
-		<div class="text-wrap text-break mb-2 fw-bold" style="white-space: pre" v-if="comment && isOwner">
-			{{ comment.trim() }}
-		</div>
-		<div v-if="!isOwner" class="mb-2">
-			<!--a :href="$web3.blockExplorer + '/address/' + backup.wallet" target="_blank" rel="noopener noreferrer">
-				{{ $filters.addressShort(backup.wallet) }}
-			</a-->
+		<div class="row">
+			<div class="col-30 col-xl-20 d-flex justify-content-start align-items-center mb-2">
+				<div class="text-wrap text-break fw-bold fs-5" style="white-space: pre" v-if="comment && isOwner">
+					{{ comment.trim() }}
+				</div>
+			</div>
 
-			<Account_Item :account="contact" v-if="contact" />
+			<div class="col-30 col-xl-10 d-flex justify-content-between justify-content-xl-end align-items-center text-center mb-2">
+				<div v-tooltip="`Created ${$date(backup.createdAt).format('DD-MM-YY HH:mm')}`">
+					{{ $date(backup.createdAt).fromNow() }}
+				</div>
+
+				<div class="rounded-pill bg-success text-white d-flex align-items-center px-3 py-1 ms-2">
+					<div class="_icon_gnossis_chain bg-white me-2"></div>
+					Gnosis
+				</div>
+			</div>
 		</div>
 
 		<div class="d-flex align-items-center justify-content-between mb-2">
@@ -21,14 +29,29 @@
 				<i class="_icon_copy bg-black ms-3 _pointer" @click="copyToClipboard(backup.tag)" v-tooltip="`Copy tag`"></i>
 			</div>
 
-			<div>
-				<div v-tooltip="`Created ${$date(backup.createdAt).format('DD-MM-YY HH:mm')}`">
-					{{ $date(backup.createdAt).fromNow() }}
-				</div>
+			<div class="d-flex align-items-center" v-if="backup.shares.length > 1">
+				<i class="_icon_shares_num bg-black me-2"></i>
+				<div>Treshold</div>
+				<span class="fw-bold ms-2"
+					>{{ backup.treshold }} <span v-if="!isOwner">of {{ backup.shares.length }} parties</span></span
+				>
+				<InfoTooltip class="align-self-center ms-2" :content="'Required number of shares to recover secret'" />
 			</div>
 		</div>
 
-		<div class="d-flex align-items-center justify-content-between mb-2" v-if="isOwner && !isUnlocked">
+		<div class="row fw-bold fs-6" v-if="$breakpoint.gt('lg')">
+			<div class="col-12 d-flex justify-content-start align-items-center text-center">User</div>
+			<div class="col-6 d-flex justify-content-center align-items-center text-center">
+				Delay
+				<InfoTooltip class="align-self-center ms-2" :content="'During this time owner can decline reading by trusted user. After time past secret is revealed'" />
+			</div>
+			<div class="col-6 d-flex justify-content-center align-items-center text-center">Status</div>
+			<div class="col-6 d-flex justify-content-end align-items-center text-center">Action</div>
+		</div>
+
+		<BackupShareItem :backup="backup" :share="share" :idx="idx" v-for="(share, idx) in backup.shares" :key="backup.id + share.idx" />
+
+		<div class="d-flex align-items-center justify-content-between mb-2" v-if="false && isOwner && !isUnlocked">
 			<div class="d-flex align-items-center">
 				<span class="fw-bold text-danger" v-if="backup.disabled">Disabled</span>
 				<span class="fw-bold" v-else>Active</span>
@@ -40,18 +63,7 @@
 			</div>
 		</div>
 
-		<div class="d-flex align-items-center me-2" v-if="backup.shares.length > 1">
-			<i class="_icon_shares_num bg-black me-2"></i>
-			<div>Shares to recover</div>
-			<span class="fw-bold ms-1"
-				>{{ backup.treshold }} <span v-if="!isOwner">of {{ backup.shares.length }} parties</span></span
-			>
-			<InfoTooltip class="align-self-center ms-2" :content="'Required number of shares to recover secret'" />
-		</div>
-
-		<BackupShareItem :backup="backup" :share="share" :idx="idx" v-for="(share, idx) in backup.shares" :key="backup.id + share.idx" />
-
-		<div v-show="tx" class="mt-2">
+		<div v-show="tx" v-if="isOwner" class="mt-2">
 			<Transactions :list="tx" />
 		</div>
 	</div>
@@ -91,14 +103,20 @@ watch(
 );
 
 const tx = computed(() => {
-	return $user.transactions.filter((t) => t.method === 'updateBackupDisabled' && t.status === 'PROCESSING' && t.methodData.tag === backup.tag);
+	return $user.transactions.filter(
+		(t) =>
+			(t.method === 'updateBackupDisabled' || t.method === 'updateShareDelay' || t.method === 'requestRecover' || t.method === 'updateShareDisabled') &&
+			t.status === 'PROCESSING' &&
+			t.status === 'PROCESSING' &&
+			t.methodData.tag === backup.tag,
+	);
 });
 
 const comment = ref();
 
 const contact = computed(() => {
 	try {
-		return $user.account.contacts.find((c) => c.address.toLowerCase() === backup.wallet.toLowerCase());
+		return $user.contacts.find((c) => c.address.toLowerCase() === backup.wallet.toLowerCase());
 	} catch (error) {}
 });
 
@@ -134,27 +152,25 @@ const updateBackupDisabled = async () => {
 		$loader.show();
 
 		const expire = $timestamp.value + 300;
-		const signature = await $web3.signTypedData($user.account.privateKey, {
-			domain: {
-				name: 'BuckitUpVault',
-				version: '1',
-				chainId: $web3.mainChainId,
-				verifyingContract: $web3.bc.vault.address,
-			},
-			types: {
-				UpdateBackupDisabled: [
-					{ name: 'tag', type: 'string' },
-					{ name: 'disabled', type: 'uint8' },
-					{ name: 'expire', type: 'uint40' },
-				],
-			},
-			primaryType: 'UpdateBackupDisabled',
-			message: {
-				tag: backup.tag,
-				disabled: backup.disabled ? 0 : 1,
-				expire,
-			},
-		});
+		const domain = {
+			name: 'BuckitUpVault',
+			version: '1',
+			chainId: $web3.mainChainId,
+			verifyingContract: $web3.bc.vault.address,
+		};
+		const types = {
+			UpdateBackupDisabled: [
+				{ name: 'tag', type: 'string' },
+				{ name: 'disabled', type: 'uint8' },
+				{ name: 'expire', type: 'uint40' },
+			],
+		};
+		const message = {
+			tag: backup.tag,
+			disabled: backup.disabled ? 0 : 1,
+			expire,
+		};
+		const signature = await $web3.signTypedData($user.account.privateKey, domain, types, message);
 
 		await axios.post(API_URL + '/dispatch/updateBackupDisabled', {
 			wallet: $user.account?.address,

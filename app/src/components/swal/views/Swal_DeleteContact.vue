@@ -1,7 +1,7 @@
 <template>
 	<!-- Header -->
 
-	<div class="mb-1 mt-2 text-center fs-5">Contact will be deleted from this device</div>
+	<div class="mb-1 mt-2 text-center fs-5">Contact will be hidden from list</div>
 
 	<div class="border-bottom opacity-75 my-2"></div>
 
@@ -10,7 +10,7 @@
 			<trn k="tx_confirm.cancel"> Cancel </trn>
 		</button>
 		<button type="button" class="btn btn-danger ms-2 px-4" @click="confirm()">
-			<trn k="tx_confirm.ok"> Delete </trn>
+			<trn k="tx_confirm.ok"> Hide </trn>
 		</button>
 	</div>
 </template>

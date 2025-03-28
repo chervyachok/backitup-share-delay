@@ -1,5 +1,5 @@
 // functions (colors, SVGs, calc, etc)
-@import '/node_modules/bootstrap/scss/functions';
+@import 'bootstrap/scss/functions';
 
 // variable overrides here
 @import './variables.scss';
@@ -42,7 +42,7 @@ $form-check-input-indeterminate-bg-image: url("data:image/svg+xml,<svg xmlns='ht
 }
 
 // required parts
-@import '/node_modules/bootstrap/scss/bootstrap.scss';
+@import 'bootstrap/scss/bootstrap.scss';
 
 html,
 body {
@@ -116,3 +116,5 @@ body {
 
 @import './styles.scss';
 @import './modal.scss';
+
+//@import 'floating-vue/dist/style.css';

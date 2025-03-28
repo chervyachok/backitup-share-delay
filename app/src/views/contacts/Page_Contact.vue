@@ -1,8 +1,8 @@
 <template>
-	<FullContentBlock v-if="$user.account">
+	<FullContentBlock v-if="contact">
 		<template #header>
 			<div class="d-flex align-items-center justify-content-between w-100 pe-3">
-				<div>Contact</div>
+				<div class="fw-bold fs-5">Contact</div>
 				<button class="btn btn-dark rounded-pill ms-1 d-flex align-items-center justify-content-center p-2 px-3" @click="$mitt.emit('modal::open', { id: 'add_contact_handshake' })">
 					<i class="_icon_plus bg-white"></i>
 					<span class="ms-2">Add</span>
@@ -11,28 +11,27 @@
 		</template>
 		<template #content>
 			<div class="_full_width_block">
-				<Account_Info :account-in="contact" ref="accountInfo" v-if="contact" @update="updateContact" />
+				<Account_Info :account-in="contact" @update="updateContact" />
 
-				<div class="d-flex justify-content-center align-items-center mt-3 mb-2" v-if="false">
-					<button type="button" class="btn btn-dark w-100 px-5" @click="save()">Save</button>
-					<button type="button" class="btn btn-dark ms-2" @click="accountInfo.reset()" v-if="contact">Discard</button>
-				</div>
+				<div class="text-danger text-center fw-bold mt-2" v-if="contact.hidden">Contact is hidden in your list of contacts</div>
 
-				<div class="d-flex justify-content-center align-items-center mt-4 mb-3" v-if="isContactSaved">
-					<button type="button" class="btn btn-dark rounded-pill _action_btn">
+				<div class="d-flex justify-content-center align-items-center mt-4 mb-3">
+					<button type="button" class="btn btn-dark rounded-pill _action_btn" v-tooltip="'Chat with contact'">
 						<i class="_icon_chats bg-white"></i>
 					</button>
 
-					<button type="button" class="btn btn-dark rounded-pill _action_btn">
+					<button type="button" class="btn btn-dark rounded-pill _action_btn" v-tooltip="'Add contact to room'">
 						<i class="_icon_rooms bg-white"></i>
 					</button>
 
-					<button type="button" class="btn btn-dark rounded-pill _action_btn">
-						<i class="_icon_share bg-white"></i>
-					</button>
-
-					<button type="button" class="btn btn-dark rounded-pill _action_btn" @click="deleteContact()">
-						<i class="_icon_delete bg-white"></i>
+					<button
+						type="button"
+						class="btn btn-dark rounded-pill _action_btn"
+						@click="toggleHidden()"
+						v-tooltip="!contact.hidden ? 'Hide contact from list' : 'Restore (Unhide) contact in list'"
+					>
+						<i class="_icon_eye_cross bg-white" v-if="!contact.hidden"></i>
+						<i class="_icon_eye bg-white" v-else></i>
 					</button>
 				</div>
 			</div>
@@ -42,13 +41,18 @@
 
 <style lang="scss" scoped>
 @import '@/scss/variables.scss';
+@import '@/scss/breakpoints.scss';
+
 ._full_width_block {
 	max-width: 30rem;
 	width: 100%;
 }
 
 ._action_btn {
-	padding: 1.2rem;
+	padding: 0.8rem;
+	@include media-breakpoint-up(sm) {
+		padding: 1.2rem;
+	}
 	margin-left: 0.3rem;
 	margin-right: 0.3rem;
 	i {
@@ -59,60 +63,51 @@
 </style>
 
 <script setup>
-import { ref, onMounted, watch, inject, computed } from 'vue';
+import { ref, onMounted, watch, inject, computed, nextTick } from 'vue';
 import Account_Info from '@/components/Account_Info.vue';
 import FullContentBlock from '@/components/FullContentBlock.vue';
-import { uploadToIPFS } from '@/api/ipfs';
 import errorMessage from '@/utils/errorMessage';
+import dayjs from 'dayjs';
 
 const $user = inject('$user');
 const $swal = inject('$swal');
 const $route = inject('$route');
 const $router = inject('$router');
-const $loader = inject('$loader');
 const $swalModal = inject('$swalModal');
 const $mitt = inject('$mitt');
-
-const accountInfo = ref();
-const updatedContact = ref();
+const $enigma = inject('$enigma');
 
 onMounted(async () => {
 	if (!contact.value) {
 		return $router.push({ name: 'account_info' });
 	}
-	updatedContact.value = JSON.parse(JSON.stringify(contact.value));
 });
-
-const updateContact = (c) => {
-	updatedContact.value = c;
-	save();
-};
 
 const contact = computed(() => {
-	return $user.account.contacts.find((e) => e.address === $route.params.address);
+	return $user.contacts.find((e) => e.address === $route.params.address);
 });
 
-const isContactSaved = computed(() => {
-	return $user.account.contacts.findIndex((e) => e.address === updatedContact.value?.address) > -1;
+const listedContacts = computed(() => {
+	return $user.contacts.filter((contact) => !contact.hidden);
 });
 
-async function save() {
+async function updateContact(updatedContact) {
 	try {
-		const idx = $user.account.contacts.findIndex((e) => e.address === contact.value?.address);
-		if (idx > -1) {
-			if (updatedContact.value.avatar?.dataUrl) {
-				$loader.show();
-				updatedContact.value.avatar = await uploadToIPFS(updatedContact.value.avatar.blobFile);
+		const contactDx = $user.contactsDx.find((e) => e.id === updatedContact.id);
+		if (contactDx) {
+			if (contact.value.name !== updatedContact.name) {
+				contactDx.name = $enigma.encryptDataSync(updatedContact.name, $user.account.privateKey);
+				contactDx.updatedAt = dayjs().valueOf();
 			}
-
-			$user.account.contacts[idx].name = updatedContact.value.name;
-			$user.account.contacts[idx].avatar = updatedContact.value.avatar;
-			$user.account.contacts[idx].notes = updatedContact.value.notes;
-			$user.updateVault();
-			//await $encryptionManager.setData($user.toVaultFormat($user.account))
+			if (contact.value.avatar !== updatedContact.avatar) {
+				contactDx.avatar = $enigma.encryptDataSync(updatedContact.avatar, $user.account.privateKey);
+				contactDx.updatedAt = dayjs().valueOf();
+			}
+			if (contact.value.notes !== updatedContact.notes) {
+				contactDx.notes = $enigma.encryptDataSync(updatedContact.notes, $user.account.privateKey);
+				contactDx.updatedAt = dayjs().valueOf();
+			}
 		}
-
-		accountInfo.value.reset();
 	} catch (error) {
 		console.log(error);
 		$swal.fire({
@@ -122,15 +117,33 @@ async function save() {
 			timer: 15000,
 		});
 	}
-	$loader.hide();
 }
 
-const deleteContact = async () => {
-	if (!(await $swalModal.value.open({ id: 'delete_contact' }))) return;
-	const idx = $user.account.contacts.findIndex((e) => e.address === contact.value?.address);
-	if (idx > -1) $user.account.contacts.splice(idx, 1);
-	$user.updateVault();
+const toggleHidden = async () => {
+	const contactDx = $user.contactsDx.find((e) => e.id === contact.value.id);
+	if (contactDx) {
+		let hide;
+		if (!contact.value.hidden) {
+			if (!(await $swalModal.value.open({ id: 'delete_contact' }))) return;
+			hide = true;
+		}
 
-	$router.push({ name: 'home' });
+		contactDx.hidden = $enigma.encryptDataSync(!contact.value.hidden, $user.account.privateKey);
+		contactDx.updatedAt = dayjs().valueOf();
+
+		if (hide) {
+			await new Promise((resolve) => setTimeout(resolve, 300));
+
+			if (listedContacts.value.length) {
+				$router.push({ name: 'contact', params: { address: listedContacts.value[0].address } });
+			} else {
+				if (window.history.length > 1) {
+					$router.go(-1); // ✅ Go back if history exists
+				} else {
+					$router.push({ name: 'home' }); // ✅ Otherwise, go home
+				}
+			}
+		}
+	}
 };
 </script>

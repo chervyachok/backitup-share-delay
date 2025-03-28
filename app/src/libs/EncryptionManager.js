@@ -1,297 +1,379 @@
-import { connect, rawStorage, removeAll } from "@lo-fi/local-vault";
-import "@lo-fi/local-vault/adapter/idb";
-import { removeLocalAccount } from "@lo-fi/local-data-lock";
+import { connect, rawStorage, removeAll } from '@lo-fi/local-vault';
+import '@lo-fi/local-vault/adapter/idb';
+import { removeLocalAccount } from '@lo-fi/local-data-lock';
+
 /**
  * Class for managing encryption and data storage.
  * Implements the Singleton pattern to ensure a single instance.
  * Added support for events via EventTarget.
  */
 export class EncryptionManager extends EventTarget {
-  // Static property to store the single instance of the class
-  static instance = null;
+	// Static property to store the single instance of the class
+	static instance = null;
 
-  // Private properties
-  #vault = null; // Storage object
-  #vaults = [];
-  #isAuth = false; // Authorization state flag
-  #rawStore = rawStorage("idb"); // Raw storage for storing the vault ID
+	// Private properties
+	#vault = null; // Storage object
+	#vaults = [];
+	#isAuth = false; // Authorization state flag
+	#rawStore = rawStorage('idb'); // Raw storage for storing the vault ID
+	#isProduction = false;
+	/**
+	 * Private constructor to implement Singleton.
+	 * Use EncryptionManager.getInstance() to get the instance.
+	 */
+	constructor(IS_PRODUCTION) {
+		super();
+		if (EncryptionManager.instance) {
+			return EncryptionManager.instance;
+		}
+		EncryptionManager.instance = this;
 
-  /**
-   * Private constructor to implement Singleton.
-   * Use EncryptionManager.getInstance() to get the instance.
-   */
-  constructor() {
-    super();
-    if (EncryptionManager.instance) {
-      return EncryptionManager.instance;
-    }
-    EncryptionManager.instance = this;
+		this.#isProduction = IS_PRODUCTION;
 
-    this.getVaults();
-  }
+		//console.log('EncryptionManager', IS_PRODUCTION, this.#rawStore);
 
-  /**
-   * Static method to get the single instance of the class.
-   * @returns {EncryptionManager} - Instance of the EncryptionManager class.
-   */
-  static getInstance() {
-    if (!EncryptionManager.instance) {
-      EncryptionManager.instance = new EncryptionManager();
-    }
-    return EncryptionManager.instance;
-  }
+		this.getVaults();
+	}
 
-  /**
-   * Getter for accessing the authorization state.
-   * @returns {boolean} - Authorization state (true or false).
-   */
-  get isAuth() {
-    return this.#isAuth;
-  }
+	/**
+	 * Static method to get the single instance of the class.
+	 * @returns {EncryptionManager} - Instance of the EncryptionManager class.
+	 */
+	static getInstance() {
+		if (!EncryptionManager.instance) {
+			EncryptionManager.instance = new EncryptionManager();
+		}
+		return EncryptionManager.instance;
+	}
 
-  /**
-   * Setter for updating the authorization state.
-   * Automatically dispatches an authChange event when the value changes.
-   * @param {boolean} value - New value for the authorization state.
-   */
-  set isAuth(value) {
-    if (this.#isAuth !== value) {
-      // Check if the value has changed
-      this.#isAuth = value;
-      this.dispatchEvent(
-        new CustomEvent("authChange", { detail: { isAuth: value } })
-      );
-    }
-  }
+	/**
+	 * Getter for accessing the authorization state.
+	 * @returns {boolean} - Authorization state (true or false).
+	 */
+	get isAuth() {
+		return this.#isAuth;
+	}
 
-  /**
-   * Initializes the storage by connecting to an existing vault or creating a new one.
-   */
-  async initialize() {
-    try {
-      const vaultID = await this.getVaultID();
-      if (vaultID) {
-        await this.connectToVault(vaultID);
-      } else {
-        await this.createVault();
-      }
-    } catch (error) {
-      await this.handleError(error, "Error during storage initialization");
-    }
-  }
+	/**
+	 * Setter for updating the authorization state.
+	 * Automatically dispatches an authChange event when the value changes.
+	 * @param {boolean} value - New value for the authorization state.
+	 */
+	set isAuth(value) {
+		if (this.#isAuth !== value) {
+			// Check if the value has changed
+			this.#isAuth = value;
+			this.dispatchEvent(new CustomEvent('authChange', { detail: { isAuth: value } }));
+		}
+	}
 
-  /**
-   * Creates a new vault and saves its ID.
-   */
-  async createVault(data) {
-    try {
-      this.#vault = await connect({
-        storageType: "idb",
-        addNewVault: true,
-        keyOptions: data.keyOptions,
-      });
-      //await this.saveVaultID(this.#vault.id);
-      this.#vaults.push({
-        displayName: data.keyOptions?.displayName,
-        username: data.keyOptions?.username,
-        address: data.address,
-        id: this.#vault.id,
-      });
-      // await this.#vault.set(vaultID ? vaultID : this.#vault.id, value);
-      await this.#rawStore.set("vaults-registry", this.#vaults);
-      // Set isAuth using the setter
-      this.isAuth = true;
+	/**
+	 * Initializes the storage by connecting to an existing vault or creating a new one.
+	 */
+	async initialize() {
+		try {
+			const vaultID = await this.getVaultID();
+			if (vaultID) {
+				await this.connectToVault(vaultID);
+			} else {
+				await this.createVault();
+			}
+		} catch (error) {
+			await this.handleError(error, 'Error during storage initialization');
+		}
+	}
 
-      console.log("Created a new vault with ID:", this.#vault.id);
-    } catch (error) {
-      console.log("createVault error", error);
-      //await this.handleError(error, "Error creating a new vault");
-    }
-  }
+	/**
+	 * Creates a new vault and saves its ID.
+	 */
+	async createVault(data) {
+		try {
+			if (this.#isProduction) {
+				this.#vault = await connect({
+					storageType: 'idb',
+					addNewVault: true,
+					keyOptions: data.keyOptions,
+				});
+				//await this.saveVaultID(this.#vault.id);
+				this.#vaults.push({
+					name: data.keyOptions?.username,
+					notes: data.notes,
+					avatar: data.avatar,
+					address: data.address,
+					publicKey: data.publicKey,
+					vaultId: this.#vault.id,
+				});
+				// await this.#vault.set(vaultID ? vaultID : this.#vault.id, value);
+				await this.#rawStore.set('vaults-registry', this.#vaults);
+			} else {
+				this.#vault = {
+					id: data.publicKey,
+				};
+				//console.log('this.#vault', this.#vault);
+				this.#vaults.push({
+					name: data.keyOptions.username,
+					address: data.address,
+					notes: data.notes,
+					avatar: data.avatar,
+					publicKey: data.publicKey,
+					vaultId: this.#vault.id,
+				});
 
-  /**
-   * Connects to an existing vault using its ID.
-   * @param {string} vaultID - The vault identifier.
-   */
-  async connectToVault(vaultID) {
-    try {
-      this.#vault = await connect({
-        vaultID,
-        storageType: "idb",
-      });
+				//console.log('this.#vaults', this.#vaults);
 
-      // Set isAuth using the setter
-      this.isAuth = true;
+				await this.#rawStore.set('test-vaults-registry', this.#vaults);
 
-      console.log("Connected to existing vault:", vaultID);
-    } catch (error) {
-      this.isAuth = false; // Use the setter
-      console.error(error);
-    }
-  }
+				//console.log('this.#vaults 2', this.#vaults);
 
-  async disconnect() {
-    this.#vault = null;
-    this.isAuth = false;
-  }
+				const vaults = await this.#rawStore.get('test-vaults-registry');
+				//console.log('test-vaults-registry', vaults);
+			}
 
-  async removeVault() {
-    try {
-      this.#vaults = this.#vaults.filter((item) => item.id !== this.#vault.id);
-      await this.#rawStore.set("vaults-registry", this.#vaults);
+			// Set isAuth using the setter
+			this.isAuth = true;
 
-      const vaultData = await this.#rawStore.get(
-        `local-vault-${this.#vault.id}`
-      );
+			console.log('Created a new vault with ID:', this.#vault.id);
+		} catch (error) {
+			console.log('createVault error', error);
+			//await this.handleError(error, "Error creating a new vault");
+		}
+	}
 
-      await this.#vault.clear();
-      removeLocalAccount(vaultData.accountID);
-      console.log("removeVault");
-      this.#vault = null;
-      this.isAuth = false;
-    } catch (error) {
-      console.error("removeVault error", error);
-    }
-  }
+	/**
+	 * Connects to an existing vault using its ID.
+	 * @param {string} vaultID - The vault identifier.
+	 */
+	async connectToVault(vaultID) {
+		try {
+			if (this.#isProduction) {
+				this.#vault = await connect({
+					vaultID,
+					storageType: 'idb',
+				});
+			} else {
+				this.#vault = {
+					id: vaultID,
+				};
+			}
 
-  /**
-   * Saves data to the vault.
-   * @param {string} value - Data to save.
-   */
-  async setData(value, vaultID) {
-    try {
-      //await this.ensureVault();
-      //const vaultID = await this.getVaultID();
-      await this.#vault.set(vaultID ? vaultID : this.#vault.id, value);
-      console.log(`Data saved:`, value);
-      return true;
-    } catch (error) {
-      await this.handleError(error, "Error saving data");
-    }
-  }
+			// Set isAuth using the setter
+			this.isAuth = true;
 
-  async getVaults() {
-    try {
-      const vaults = await this.#rawStore.get("vaults-registry");
-      console.log("getVaults", vaults);
-      this.#vaults = vaults || [];
-      return this.#vaults;
-    } catch (error) {
-      this.handleError(error, "no vaults");
-      console.error(`getVaults error`, error);
-      return [];
-    }
-  }
+			console.log('Connected to existing vault:', vaultID);
+		} catch (error) {
+			this.isAuth = false; // Use the setter
+			console.error(error);
+		}
+	}
 
-  /**
-   * Retrieves data from the vault.
-   * @returns {Promise<any>} - Retrieved data.
-   */
-  async getData(vaultID) {
-    try {
-      const value = await this.#vault.get(vaultID ? vaultID : this.#vault.id);
-      console.log(`getData`, value);
-      return value;
-    } catch (error) {
-      await this.handleError(error, "Error retrieving data");
-    }
-  }
+	async disconnect() {
+		this.#vault = null;
+		this.isAuth = false;
+	}
 
-  /**
-   * Checks for the existence of a vault.
-   * @returns {Promise<boolean>} - true if the vault exists, otherwise false.
-   */
-  async hasVault() {
-    try {
-      const vaultID = await this.getVaultID();
-      return !!vaultID;
-    } catch (error) {
-      console.error("Error checking vault existence:", error);
-      return false;
-    }
-  }
+	async removeVault() {
+		try {
+			const vaults = this.#vaults.filter((item) => item.id !== this.#vault.id);
 
-  /**
-   * Clears the vault and removes its ID.
-   */
-  async clearVault() {
-    try {
-      await removeAll();
-      await this.removeVaultID();
-      this.#vault = null;
+			if (this.#isProduction) {
+				const vaultData = await this.#rawStore.get(`local-vault-${this.#vault.id}`);
+				await this.#vault.clear();
+				removeLocalAccount(vaultData.accountID);
+				await this.#rawStore.set('vaults-registry', vaults);
+			} else {
+				await this.#rawStore.remove(`test-local-vault-${this.#vault.id}`);
+				await this.#rawStore.set('test-vaults-registry', vaults);
+			}
 
-      // Set isAuth using the setter
-      this.isAuth = false;
+			this.#vaults = vaults;
 
-      console.log("Vault cleared.");
-    } catch (error) {
-      console.error("Error clearing the vault:", error);
-    }
-  }
+			console.log('removeVault');
+			this.#vault = null;
+			this.isAuth = false;
+		} catch (error) {
+			console.error('removeVault error', error);
+		}
+	}
 
-  /**
-   * Retrieves the vault ID from raw storage.
-   * @returns {Promise<string|null>} - The vault ID or null if not found.
-   */
-  async getVaultID() {
-    return await this.#rawStore.get("vault-id");
-  }
+	/**
+	 * Saves data to the vault.
+	 * @param {string} value - Data to save.
+	 */
+	async setData(value) {
+		//console.log(`setData:`, value);
+		try {
+			//await this.ensureVault();
+			//const vaultID = await this.getVaultID();
+			if (this.#isProduction) {
+				await this.#vault.set(this.#vault.id, value);
+			} else {
+				await this.#rawStore.set(`test-local-vault-${this.#vault.id}`, value);
+			}
 
-  /**
-   * Saves the vault ID to raw storage.
-   * @param {string} id - The vault ID.
-   */
-  async saveVaultID(id) {
-    await this.#rawStore.set("vault-id", id);
-  }
+			//console.log(`Data saved:`, value);
+			return true;
+		} catch (error) {
+			await this.handleError(error, 'Error saving data');
+		}
+	}
 
-  /**
-   * Removes the vault ID from raw storage.
-   */
-  async removeVaultID() {
-    await this.#rawStore.remove("vault-id");
-  }
+	async getVaults() {
+		try {
+			let vaults;
+			if (this.#isProduction) {
+				vaults = await this.#rawStore.get('vaults-registry');
+			} else {
+				vaults = await this.#rawStore.get('test-vaults-registry');
+			}
+			//console.log('getVaults', vaults);
+			this.#vaults = vaults || [];
+			return this.#vaults;
+		} catch (error) {
+			this.handleError(error, 'no vaults');
+			console.error(`getVaults error`, error);
+			return [];
+		}
+	}
 
-  /**
-   * Ensures the vault is initialized if it hasn't been already.
-   */
-  async ensureVault() {
-    if (!this.#vault) {
-      console.warn("Vault not initialized. Initializing...");
-      await this.initialize();
-    }
-  }
+	async updateAccountInfoVault(accountInfo) {
+		try {
+			if (this.#isProduction) {
+				const vaults = await this.#rawStore.get('vaults-registry');
+				const idx = vaults.findIndex((v) => v.vaultId === this.#vault.id);
+				if (idx > -1) {
+					vaults[idx].name = accountInfo.name;
+					vaults[idx].notes = accountInfo.notes;
+					vaults[idx].avatar = accountInfo.avatar;
+					await this.#rawStore.set(`vaults-registry`, vaults);
+					this.#vaults = vaults;
+				}
+			} else {
+				const vaults = await this.#rawStore.get('test-vaults-registry');
+				const idx = vaults.findIndex((v) => v.vaultId === this.#vault.id);
+				if (idx > -1) {
+					vaults[idx].name = accountInfo.name;
+					vaults[idx].notes = accountInfo.notes;
+					vaults[idx].avatar = accountInfo.avatar;
+					await this.#rawStore.set(`test-vaults-registry`, vaults);
+					this.#vaults = vaults;
+				}
+			}
+		} catch (error) {
+			this.handleError(error, 'no vaults');
+			console.error(`getVaults error`, error);
+		}
+	}
 
-  /**
-   * Handles errors that occur during storage operations.
-   * @param {Error} error - The error object.
-   * @param {string} message - The message to display.
-   */
-  async handleError(error, message) {
-    this.isAuth = false; // Use the setter
-    if (this.isCancelError(error)) {
-      console.warn(
-        `${message}: Operation canceled by user. Clearing the vault.`
-      );
-      await this.clearVault();
-    } else {
-      console.error(`${message}:`, error);
-    }
-  }
+	/**
+	 * Retrieves data from the vault.
+	 * @returns {Promise<any>} - Retrieved data.
+	 */
+	async getData() {
+		try {
+			let data;
+			if (this.#isProduction) {
+				data = await this.#vault.get(this.#vault.id);
+			} else {
+				data = await this.#rawStore.get(`test-local-vault-${this.#vault.id}`);
+			}
+			//console.log(`getData`, data);
+			return data;
+		} catch (error) {
+			await this.handleError(error, 'Error retrieving data');
+		}
+	}
 
-  /**
-   * Checks if an error resulted from a canceled operation.
-   * @param {Error} error - The error object.
-   * @returns {boolean} - true if the operation was canceled, otherwise false.
-   */
-  isCancelError(error) {
-    return (
-      error.message?.includes(
-        "The operation either timed out or was not allowed"
-      ) ||
-      error.message?.includes("Credential auth failed") ||
-      error.message?.includes("Identity/Passkey registration failed") ||
-      error.name === "AbortError"
-    );
-  }
+	/**
+	 * Checks for the existence of a vault.
+	 * @returns {Promise<boolean>} - true if the vault exists, otherwise false.
+	 */
+	async hasVault() {
+		try {
+			const vaultID = await this.getVaultID();
+			return !!vaultID;
+		} catch (error) {
+			console.error('Error checking vault existence:', error);
+			return false;
+		}
+	}
+
+	/**
+	 * Clears the vault and removes its ID.
+	 */
+	async clearVault() {
+		try {
+			await removeAll();
+			await this.removeVaultID();
+			this.#vault = null;
+
+			// Set isAuth using the setter
+			this.isAuth = false;
+
+			console.log('Vault cleared.');
+		} catch (error) {
+			console.error('Error clearing the vault:', error);
+		}
+	}
+
+	/**
+	 * Retrieves the vault ID from raw storage.
+	 * @returns {Promise<string|null>} - The vault ID or null if not found.
+	 */
+	async getVaultID() {
+		return await this.#rawStore.get('vault-id');
+	}
+
+	/**
+	 * Saves the vault ID to raw storage.
+	 * @param {string} id - The vault ID.
+	 */
+	async saveVaultID(id) {
+		await this.#rawStore.set('vault-id', id);
+	}
+
+	/**
+	 * Removes the vault ID from raw storage.
+	 */
+	async removeVaultID() {
+		await this.#rawStore.remove('vault-id');
+	}
+
+	/**
+	 * Ensures the vault is initialized if it hasn't been already.
+	 */
+	async ensureVault() {
+		if (!this.#vault) {
+			console.warn('Vault not initialized. Initializing...');
+			await this.initialize();
+		}
+	}
+
+	/**
+	 * Handles errors that occur during storage operations.
+	 * @param {Error} error - The error object.
+	 * @param {string} message - The message to display.
+	 */
+	async handleError(error, message) {
+		this.isAuth = false; // Use the setter
+		if (this.isCancelError(error)) {
+			console.warn(`${message}: Operation canceled by user. Clearing the vault.`);
+			await this.clearVault();
+		} else {
+			console.error(`${message}:`, error);
+		}
+	}
+
+	/**
+	 * Checks if an error resulted from a canceled operation.
+	 * @param {Error} error - The error object.
+	 * @returns {boolean} - true if the operation was canceled, otherwise false.
+	 */
+	isCancelError(error) {
+		return (
+			error.message?.includes('The operation either timed out or was not allowed') ||
+			error.message?.includes('Credential auth failed') ||
+			error.message?.includes('Identity/Passkey registration failed') ||
+			error.name === 'AbortError'
+		);
+	}
 }

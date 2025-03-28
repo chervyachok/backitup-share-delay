@@ -11,7 +11,10 @@
 				</div>
 
 				<div class="d-flex">
-					<button class="btn btn-dark ms-1 rounded-pill flex-fill" @click="search()">Search</button>
+					<button class="btn btn-dark ms-1 rounded-pill d-flex align-items-center flex-fill py-2" @click="search()">
+						<i class="_icon_search bg-white"></i>
+						<span class="d-none d-sm-block ms-2">Search</span>
+					</button>
 
 					<button class="btn btn-dark ms-1 rounded-pill" @click="getList()">
 						<i class="_icon_reload bg-white"></i>
@@ -24,18 +27,17 @@
 	<FullContentBlock v-if="$user.account">
 		<template #header>
 			<div class="d-flex align-items-center justify-content-between w-100 pe-3">
-				<div class="fw-bold fs-5">My backups</div>
-
+				<div class="fw-bold fs-5 py-1">My backups</div>
 				<div class="d-flex align-items-center">
-					<TopBarReuseTemplate v-if="$user.account.registeredMetaWallet && $breakpoint.gte('lg')" />
-					<button class="btn btn-dark rounded-pill ms-1 d-flex align-items-center justify-content-center" @click="$router.push({ name: 'backup_create' })">
+					<TopBarReuseTemplate v-if="$user.accountInfo.registeredMetaWallet && $breakpoint.gte('lg')" />
+					<button class="btn btn-dark rounded-pill ms-1 d-flex align-items-center justify-content-center py-2" @click="$router.push({ name: 'backup_create' })">
 						<i class="_icon_plus bg-white"></i>
 						<span class="ms-2" v-if="$breakpoint.gte('sm')">Create</span>
 					</button>
 				</div>
 			</div>
 		</template>
-		<template #headerbottom v-if="$user.account.registeredMetaWallet && $breakpoint.lt('lg')">
+		<template #headerbottom v-if="$user.accountInfo.registeredMetaWallet && $breakpoint.lt('lg')">
 			<TopBarReuseTemplate class="mt-2 pe-3" />
 		</template>
 
@@ -43,7 +45,7 @@
 			<div class="_full_width_block">
 				<Account_Activate_Reminder />
 
-				<template v-if="$user.account.registeredMetaWallet">
+				<template v-if="$user.accountInfo.registeredMetaWallet">
 					<div v-if="data.fetched">
 						<div v-if="!data.items.length" class="mt-3">
 							<div class="text-center fs-2 mb-3">No backups found</div>
@@ -68,12 +70,16 @@
 
 <style lang="scss" scoped>
 @import '@/scss/variables.scss';
+@import '@/scss/breakpoints.scss';
 ._full_width_block {
 	//max-width: 40rem;
 	width: 100%;
 }
 ._search {
-	height: 2.4rem;
+	height: 2.2rem;
+	@include media-breakpoint-up(sm) {
+		height: 2.5rem;
+	}
 }
 </style>
 
@@ -92,6 +98,7 @@ const $web3 = inject('$web3');
 const $user = inject('$user');
 const $socket = inject('$socket');
 const $loader = inject('$loader');
+const $swal = inject('$swal');
 
 const [TopBarTemplate, TopBarReuseTemplate] = createReusableTemplate();
 
@@ -118,7 +125,7 @@ onUnmounted(async () => {
 });
 
 watch(
-	() => $user.account?.registeredMetaWallet,
+	() => $user.accountInfo?.registeredMetaWallet,
 	async (newVal) => {
 		if (newVal) {
 			getList();
