@@ -26,6 +26,7 @@ dayjs.extend(relativeTime);
 // globalFilters
 import globalFilters from './libs/filters';
 import * as $enigma from './libs/enigma';
+
 import { EncryptionManager } from './libs/EncryptionManager';
 
 //const queryClient = new QueryClient();
