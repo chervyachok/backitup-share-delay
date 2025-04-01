@@ -25,6 +25,7 @@ export const signDigest = async (dataB64, privateKeyB64) => {
 	const compactRaw = signatureObj.toCompactRawBytes();
 	return arrayToBase64(compactRaw);
 };
+
 /**
  * Signs a simple string challenge using secp256k1 and returns a base64-encoded signature.
  *
