@@ -291,7 +291,7 @@ contract Vault {
             "Not valid address signature"
         );
 
-        require(share.request == 0, "Already requested");
+        //require(share.request == 0, "Already requested");
         share.request = uint40(block.timestamp);
 
         eventEmitter.emitEvent("requestRecover", abi.encode(tag, idx));

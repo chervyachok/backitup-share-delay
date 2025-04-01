@@ -70,9 +70,7 @@ async function main() {
 
 	await eventEmitter.setEmitter(registry.address, true);
 	await eventEmitter.setEmitter(vault.address, true);
-
 	return;
-
 	const testers = [
 		'0x242B39E000A1F6B509DAe48965D27eb93464F970',
 		'0xb57624fAB624b4A7A6B46217d56D7faBC4d37f38',
