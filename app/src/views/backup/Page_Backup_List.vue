@@ -215,12 +215,12 @@ async function getList() {
 		data.value.totalResults = res.totalResults;
 	} catch (error) {
 		console.error(error);
-		$swal.fire({
-			icon: 'error',
-			title: 'Fetch error',
-			footer: error.toString(),
-			timer: 30000,
-		});
+		//$swal.fire({
+		//	icon: 'error',
+		//	title: 'Fetch error',
+		//	footer: error.toString(),
+		//	timer: 30000,
+		//});
 	}
 	$loader.hide();
 	data.value.fetched = true;
