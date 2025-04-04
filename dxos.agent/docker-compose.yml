@@ -1,0 +1,17 @@
+# dxos-agent/docker-compose.yml
+
+version: '3.9'
+
+services:
+    dxos-agent:
+        build: .
+        container_name: dxos-agent
+        volumes:
+            - dxos-data:/root/.dxos # persist keys + profile
+        ports:
+            - '4040:4040' # Optional port mapping for local debugging
+        restart: unless-stopped
+        tty: true
+
+volumes:
+    dxos-data:
