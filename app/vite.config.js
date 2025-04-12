@@ -14,7 +14,7 @@ import { ConfigPlugin } from '@dxos/config/vite-plugin';
 
 let production = process.env.NODE_ENV === 'production';
 let productionApi = process.env.NODE_ENV === 'production';
-//production = true;
+production = true;
 //production = false;
 productionApi = true;
 
