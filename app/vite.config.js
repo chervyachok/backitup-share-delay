@@ -14,7 +14,7 @@ import { ConfigPlugin } from '@dxos/config/vite-plugin';
 
 let production = process.env.NODE_ENV === 'production';
 let productionApi = process.env.NODE_ENV === 'production';
-production = true;
+//production = true;
 //production = false;
 productionApi = true;
 
@@ -82,7 +82,7 @@ export default defineConfig({
 	//base: '/frontend',
 	build: {
 		//outDir: '../priv/static/frontend', // emit assets to priv/static/frontend
-		//emptyOutDir: true,
+		emptyOutDir: true,
 		rollupOptions: {
 			onwarn(warning, warn) {
 				if (warning.message.includes('PURE') || warning.message.includes('has been externalized')) return;
